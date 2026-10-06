@@ -1,0 +1,186 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+---
+
+<Layout
+  title="Contact Us | Tokyoride"
+  description="Contact the Tokyoride team for tour bookings, garage visits, and custom inquiries."
+>
+  <main class="max-w-4xl mx-auto px-6 py-12">
+    <!-- Header -->
+    <div class="mb-10 text-center sm:text-left">
+      <Badge variant="outline" className="text-zinc-700 border-zinc-300 bg-zinc-100 mb-3">
+        Inquiries & Bookings
+      </Badge>
+      <h1 class="text-3xl sm:text-4xl font-black tracking-tight text-zinc-950 uppercase">
+        Contact Tokyoride
+      </h1>
+      <p class="text-zinc-600 text-base sm:text-lg mt-3 leading-relaxed">
+        Send us a message for private runs, schedule questions, or garage visits.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <!-- Contact Info -->
+      <aside class="space-y-6">
+        <div class="bg-white border border-zinc-200 rounded-xl p-6 shadow-sm space-y-4">
+          <div>
+            <span class="text-xs uppercase font-mono tracking-wider text-zinc-400 block mb-1">
+              Direct Contact
+            </span>
+            <div class="space-y-1.5 text-xs">
+              <div>
+                <span class="text-zinc-500 block">Phone:</span>
+                <a
+                  href="tel:+81462589614"
+                  class="font-mono font-medium text-zinc-900 hover:text-red-600 transition-colors"
+                >
+                  +81 46-258-9614
+                </a>
+              </div>
+              <div class="pt-1">
+                <span class="text-zinc-500 block">Email:</span>
+                <a
+                  href="mailto:atsugihobbyshopahs@gmail.com"
+                  class="font-mono font-medium text-zinc-900 hover:text-red-600 transition-colors break-all"
+                >
+                  atsugihobbyshopahs@gmail.com
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <hr class="border-zinc-100" />
+
+          <div>
+            <span class="text-xs uppercase font-mono tracking-wider text-zinc-400 block mb-2">
+              Location
+            </span>
+            <div class="rounded-lg overflow-hidden border border-zinc-200 aspect-video w-full mb-3 shadow-inner bg-zinc-100">
+              <iframe
+                title="AHS Headquarters Google Map"
+                src="https://maps.google.com/maps?q=35.3836835,139.4131036&hl=en&z=14&output=embed"
+                width="100%"
+                height="100%"
+                style="border:0;"
+                allowfullscreen=""
+                loading="lazy"
+                referrerpolicy="no-referrer-when-downgrade"
+              ></iframe>
+            </div>
+            <a
+              href="https://www.google.com/maps/place/AHS+Headquarters/@35.5146432,139.3434495,11z/data=!4m10!1m2!2m1!1sauto+hobby+shop+fujisawa!3m6!1s0x601901a7f388136f:0x45d925200ef6c1f2!8m2!3d35.3836835!4d139.4131036!15sChhhdXRvIGhvYmJ5IHNob3AgZnVqaXNhd2FaGiIYYXV0byBob2JieSBzaG9wIGZ1amlzYXdhkgEJdGlyZV9zaG9wmgFEQ2k5RFFVbFJRVU52WkVOb2RIbGpSamx2VDJ0NFJFeFZUbFJVTVVsNFRqQjBXRll6YUhGVmJsRjRaVzA1V2xwV1JSQULgAQD6AQQIABBB!16s%2Fg%2F11vlqfrj4f?entry=ttu&g_ep=EgoyMDI2MDkzMC4wIKXMDSoASAFQAw%3D%3D"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center gap-1.5 text-xs font-semibold text-red-600 hover:text-red-700 transition-colors"
+            >
+              <span>Open in Google Maps</span>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-3.5 h-3.5">
+                <path fill-rule="evenodd" d="M4.25 5.5a.75.75 0 0 0-.75.75v8.5c0 .414.336.75.75.75h8.5a.75.75 0 0 0 .75-.75v-4a.75.75 0 0 1 1.5 0v4A2.25 2.25 0 0 1 12.75 17h-8.5A2.25 2.25 0 0 1 2 14.75v-8.5A2.25 2.25 0 0 1 4.25 4h4a.75.75 0 0 1 0 1.5h-4Zm6.5 0a.75.75 0 0 1 .75-.75h4.75a.75.75 0 0 1 .75.75v4.75a.75.75 0 0 1-1.5 0V6.56l-5.47 5.47a.75.75 0 1 1-1.06-1.06l5.47-5.47H11.5a.75.75 0 0 1-.75-.75Z" clip-rule="evenodd" />
+              </svg>
+            </a>
+          </div>
+
+          <hr class="border-zinc-100" />
+
+          <div>
+            <span class="text-xs uppercase font-mono tracking-wider text-zinc-400 block mb-1">
+              Meeting Time
+            </span>
+            <p class="text-zinc-700 text-xs leading-relaxed">
+              Evening highway cruises generally start at 19:00 JST. Exact times confirm after booking.
+            </p>
+          </div>
+
+          <hr class="border-zinc-100" />
+
+          <div>
+            <span class="text-xs uppercase font-mono tracking-wider text-zinc-400 block mb-1">
+              Response Time
+            </span>
+            <p class="text-zinc-700 text-xs">
+              We respond to inquiries within 24 hours.
+            </p>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Contact Form -->
+      <div class="lg:col-span-2 bg-white border border-zinc-200 rounded-xl p-8 shadow-sm">
+        <form class="space-y-6" onsubmit="event.preventDefault(); alert('Message sent! We will contact you soon.');">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="space-y-2">
+              <label for="name" class="block text-xs font-bold uppercase tracking-wider text-zinc-700">
+                Full Name
+              </label>
+              <input
+                id="name"
+                name="name"
+                type="text"
+                required
+                placeholder="Kenji Sato"
+                class="w-full rounded-lg border border-zinc-300 px-3.5 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
+              />
+            </div>
+
+            <div class="space-y-2">
+              <label for="email" class="block text-xs font-bold uppercase tracking-wider text-zinc-700">
+                Email Address
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                required
+                placeholder="you@example.com"
+                class="w-full rounded-lg border border-zinc-300 px-3.5 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
+              />
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <label for="topic" class="block text-xs font-bold uppercase tracking-wider text-zinc-700">
+              Interest / Tour Type
+            </label>
+            <select
+              id="topic"
+              name="topic"
+              class="w-full rounded-lg border border-zinc-300 px-3.5 py-2.5 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all bg-white"
+            >
+              <option value="daikoku">Daikoku PA & Wangan Midnight Run</option>
+              <option value="fujisawa-shonan">Fujisawa Coastal & Shonan Route Cruise</option>
+              <option value="kanagawa-touge">Kanagawa Mountain Touge & Hakone Run</option>
+              <option value="ahs-garage">Fujisawa AHS Garage Build & Tuning Experience</option>
+              <option value="fuji-speedway">Fuji Speedway & Mount Fuji Track Tour</option>
+              <option value="custom">Custom Private Group Tour</option>
+              <option value="general">General Question</option>
+            </select>
+          </div>
+
+          <div class="space-y-2">
+            <label for="message" class="block text-xs font-bold uppercase tracking-wider text-zinc-700">
+              Message
+            </label>
+            <textarea
+              id="message"
+              name="message"
+              rows="5"
+              required
+              placeholder="Tell us about your preferred dates, group size, or questions..."
+              class="w-full rounded-lg border border-zinc-300 px-3.5 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
+            ></textarea>
+          </div>
+
+          <Button
+            type="submit"
+            className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-5 cursor-pointer shadow-sm text-sm"
+          >
+            Send Inquiry
+          </Button>
+        </form>
+      </div>
+    </div>
+  </main>
+</Layout>

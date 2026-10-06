@@ -1,0 +1,87 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { Badge } from "@/components/ui/badge";
+---
+
+<Layout
+  title="About Us | Tokyoride"
+  description="Learn about Tokyoride, Sam Otani, and the AHS Garage base in Fujisawa, Kanagawa."
+>
+  <main class="max-w-4xl mx-auto px-6 py-12">
+    <!-- Header -->
+    <div class="mb-10 text-center sm:text-left">
+      <Badge variant="outline" className="text-zinc-700 border-zinc-300 bg-zinc-100 mb-3">
+        AHS Fujisawa Garage
+      </Badge>
+      <h1 class="text-3xl sm:text-4xl font-black tracking-tight text-zinc-950 uppercase">
+        About Tokyoride
+      </h1>
+      <p class="text-zinc-600 text-base sm:text-lg mt-3 leading-relaxed">
+        Real JDM experiences hosted directly from Kanagawa automotive roots.
+      </p>
+    </div>
+
+    <!-- Main Content -->
+    <div class="space-y-8">
+      <section class="bg-white border border-zinc-200 rounded-xl p-8 shadow-sm">
+        <h2 class="text-xl font-bold text-zinc-950 mb-3">
+          Our Story & Mission
+        </h2>
+        <p class="text-zinc-700 leading-relaxed text-sm sm:text-base mb-4">
+          Tokyoride started with a direct objective: show international enthusiasts real Japanese car culture.
+          Rather than standard tourist bus routes, we invite guests into our actual garage environment.
+        </p>
+        <p class="text-zinc-700 leading-relaxed text-sm sm:text-base">
+          Based out of Fujisawa, Kanagawa, we sit at the junction connecting the Shonan coastal roads,
+          the Hakone mountain passes, and the Tokyo highway loop.
+        </p>
+      </section>
+
+      <section class="bg-white border border-zinc-200 rounded-xl p-8 shadow-sm">
+        <h2 class="text-xl font-bold text-zinc-950 mb-3">
+          Meet Sam Otani (AHS)
+        </h2>
+        <p class="text-zinc-700 leading-relaxed text-sm sm:text-base mb-4">
+          Sam Otani leads AHS (Auto Hobby Shop) and curates every ride program.
+          With decades of hands-on experience tuning iconic Japanese sports cars, Sam brings deep technical
+          knowledge and community relationships across Japan's car scene.
+        </p>
+        <p class="text-zinc-700 leading-relaxed text-sm sm:text-base">
+          Every guest rides with verified hosts who prioritize driving etiquette, road safety, and genuine immersion.
+        </p>
+      </section>
+
+      <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-white border border-zinc-200 rounded-xl p-6 shadow-sm">
+          <span class="text-xs uppercase font-mono tracking-wider text-red-600 font-bold block mb-2">
+            01 • Base
+          </span>
+          <h3 class="font-bold text-zinc-950 mb-2">AHS Garage Base</h3>
+          <p class="text-zinc-600 text-sm leading-relaxed">
+            Direct access to genuine car lifts, ongoing project builds, and authentic Japanese tuning workshops.
+          </p>
+        </div>
+
+        <div class="bg-white border border-zinc-200 rounded-xl p-6 shadow-sm">
+          <span class="text-xs uppercase font-mono tracking-wider text-red-600 font-bold block mb-2">
+            02 • Routes
+          </span>
+          <h3 class="font-bold text-zinc-950 mb-2">Historic Highway Runs</h3>
+          <p class="text-zinc-600 text-sm leading-relaxed">
+            Experience Daikoku Parking Area, Wangan Bayside Route, and the Yokohama Bay Bridge at night.
+          </p>
+        </div>
+
+        <div class="bg-white border border-zinc-200 rounded-xl p-6 shadow-sm">
+          <span class="text-xs uppercase font-mono tracking-wider text-red-600 font-bold block mb-2">
+            03 • Culture
+          </span>
+          <h3 class="font-bold text-zinc-950 mb-2">Pure Respect</h3>
+          <p class="text-zinc-600 text-sm leading-relaxed">
+            We preserve local meet guidelines so international fans connect respectfully with local builders.
+          </p>
+        </div>
+      </section>
+    </div>
+  </main>
+</Layout>

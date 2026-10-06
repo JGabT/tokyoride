@@ -1,17 +1,239 @@
 ---
+import Layout from "@/layouts/Layout.astro";
+import { getCollection } from "astro:content";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
+const allTours = await getCollection("tours");
+// Four main Fujisawa & Kanagawa tours
+const mainTourSlugs = [
+  "daikoku-night-run",
+  "fujisawa-shonan-cruise",
+  "kanagawa-hakone-touge",
+  "ahs-garage-tuning-experience",
+];
+
+const kanagawaTours = mainTourSlugs
+  .map((slug) => allTours.find((t) => t.id === slug))
+  .filter((t): t is NonNullable<typeof t> => Boolean(t));
+
+// Fuji Speedway tour
+const fujiSpeedwayTour = allTours.find((t) => t.id === "fuji-speedway-tour");
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+<Layout
+  title="TOKYORIDE | JDM Tours & Garage Experiences"
+  description="Discover the JDM culture in Japan with curated tours and garage experiences in Fujisawa, Kanagawa."
+>
+  <!-- Full-Width Hero Section -->
+  <section class="relative w-full overflow-hidden bg-zinc-950 text-white min-h-[460px] sm:min-h-[540px] lg:min-h-[600px] flex items-end">
+    <!-- Full-width background image with object positioning for mobile -->
+    <img
+      src="/hero-kanagawa.jpg"
+      alt="JDM sports car on Kanagawa Shonan coastal highway overlooking Mount Fuji at dusk"
+      class="absolute inset-0 w-full h-full object-cover object-[70%_center] sm:object-center"
+      loading="eager"
+    />
+
+    <!-- Multi-stage gradient overlay: dark left on desktop, solid dark base at bottom for transition -->
+    <div class="absolute inset-0 bg-linear-to-t from-zinc-950 via-zinc-950/70 to-transparent sm:bg-linear-to-r sm:from-zinc-950/90 sm:via-zinc-950/50 sm:to-transparent"></div>
+    <div class="absolute inset-x-0 bottom-0 h-28 sm:h-36 bg-linear-to-b from-transparent to-zinc-50"></div>
+
+    <!-- Content container aligned with max-w-6xl -->
+    <div class="relative z-10 w-full max-w-6xl mx-auto px-6 pb-12 sm:pb-16 pt-24">
+      <div class="max-w-2xl space-y-3 sm:space-y-4">
+        <div>
+          <span class="inline-block text-[11px] sm:text-xs font-mono uppercase tracking-widest text-red-400 bg-red-950/80 border border-red-800/80 rounded-full px-3 py-1 backdrop-blur-xs">
+            Kanagawa • Shonan Coastal Base
+          </span>
+        </div>
+
+        <h1 class="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight uppercase leading-[1.15] text-white drop-shadow-md">
+          Fujisawa / Kanagawa Japan Experience
+        </h1>
+
+        <p class="text-base sm:text-xl font-bold text-red-500 drop-shadow-sm">
+          Discover the JDM culture in Japan.
+        </p>
+
+        <p class="text-xs sm:text-sm text-zinc-300 leading-relaxed max-w-xl">
+          Ride along scenic coastal highways, iconic mountain touge passes, and historic parking areas directly from Sam Otani's AHS garage in Fujisawa.
+        </p>
+
+        <div class="pt-2">
+          <a
+            href="#tours"
+            class="inline-flex items-center gap-2 text-xs sm:text-sm font-bold uppercase tracking-wider bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-lg shadow-md transition-all hover:translate-y-[-1px]"
+          >
+            <span>Explore Tours</span>
+            <span>↓</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Content Container -->
+  <main class="max-w-6xl mx-auto px-6 pt-4 pb-16 space-y-16">
+    <!-- 4 Main Tours Listing -->
+    <section id="tours" class="scroll-mt-28">
+      <div class="mb-8">
+        <div class="flex items-center gap-2 mb-1">
+          <Badge variant="outline" className="text-red-600 border-red-200 bg-red-50 font-bold">
+            Four Featured Experiences
+          </Badge>
+        </div>
+        <h2 class="text-2xl sm:text-3xl font-black tracking-tight text-zinc-950 uppercase">
+          Fujisawa & Kanagawa Tours
+        </h2>
+        <p class="text-xs sm:text-sm text-zinc-500 mt-1">
+          Curated automotive road trips starting directly from our Fujisawa garage.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
+        {kanagawaTours.map((tour) => (
+          <a
+            href={`/tours/${tour.id}`}
+            class="group block h-full text-inherit no-underline focus:outline-none focus:ring-2 focus:ring-red-500 rounded-xl"
+          >
+            <Card className="bg-white border-zinc-200 shadow-sm flex flex-col justify-between h-full transition-all duration-300 group-hover:border-zinc-400 group-hover:shadow-md">
+              <CardHeader className="space-y-4">
+                <div class="flex items-center justify-between">
+                  <Badge
+                    variant="outline"
+                    className="text-zinc-700 border-zinc-300 bg-zinc-50 font-medium"
+                  >
+                    {tour.data.durationHours} Hours
+                  </Badge>
+                  <span class="font-mono font-bold text-base">
+                    ¥{tour.data.priceJpy.toLocaleString()}
+                  </span>
+                </div>
+
+                <div>
+                  <CardTitle className="text-xl font-bold text-zinc-950 leading-snug min-h-[3.25rem] flex items-center group-hover:text-red-600 transition-colors">
+                    {tour.data.title}
+                  </CardTitle>
+                  <CardDescription className="text-zinc-600 text-sm mt-2 line-clamp-2 min-h-[2.5rem]">
+                    {tour.data.subtitle}
+                  </CardDescription>
+                </div>
+              </CardHeader>
+
+              <div class="flex-1 flex flex-col justify-end">
+                <CardContent className="text-sm text-zinc-600 py-4 border-t border-zinc-100">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <span class="text-zinc-400 text-xs uppercase font-medium block">
+                        Meeting Base
+                      </span>
+                      <span class="font-medium text-zinc-900 text-sm">
+                        {tour.data.meetingPoint}
+                      </span>
+                    </div>
+
+                    <!-- Arrow indicator showing and sliding on hover -->
+                    <div class="flex items-center justify-center w-9 h-9 rounded-full bg-zinc-100 text-zinc-400 transition-all duration-300 group-hover:bg-red-600 group-hover:text-white group-hover:translate-x-1 shadow-xs">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.5"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        class="w-4 h-4"
+                      >
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                        <polyline points="12 5 19 12 12 19"></polyline>
+                      </svg>
+                    </div>
+                  </div>
+                </CardContent>
+              </div>
+            </Card>
+          </a>
+        ))}
+      </div>
+    </section>
+
+    <!-- Fuji Speedway Tour Section -->
+    {fujiSpeedwayTour && (
+      <section id="fuji-speedway" class="scroll-mt-28">
+        <div class="mb-8">
+          <div class="flex items-center gap-2 mb-1">
+            <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-50 font-bold">
+              Circuit Special
+            </Badge>
+          </div>
+          <h2 class="text-2xl font-black tracking-tight text-zinc-950 uppercase">
+            Fuji Speedway Tour
+          </h2>
+          <p class="text-sm text-zinc-500 mt-1">
+            Historic international racing circuit immersion at the base of Mount Fuji.
+          </p>
+        </div>
+
+        <a
+          href={`/tours/${fujiSpeedwayTour.id}`}
+          class="group block text-inherit no-underline focus:outline-none focus:ring-2 focus:ring-red-500 rounded-xl"
+        >
+          <Card className="bg-white border-zinc-200 shadow-sm transition-all duration-300 group-hover:border-zinc-400 group-hover:shadow-md overflow-hidden">
+            <div class="p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div class="space-y-3 max-w-2xl">
+                <div class="flex items-center gap-3">
+                  <Badge variant="outline" className="text-zinc-700 border-zinc-300 bg-zinc-50 font-medium">
+                    {fujiSpeedwayTour.data.durationHours} Hours
+                  </Badge>
+                  <span class="font-mono font-bold text-lg text-zinc-950">
+                    ¥{fujiSpeedwayTour.data.priceJpy.toLocaleString()}
+                  </span>
+                </div>
+
+                <h3 class="text-2xl font-black text-zinc-950 group-hover:text-red-600 transition-colors">
+                  {fujiSpeedwayTour.data.title}
+                </h3>
+                <p class="text-sm text-zinc-600 leading-relaxed">
+                  {fujiSpeedwayTour.data.subtitle}
+                </p>
+                <div class="pt-2 text-xs font-mono text-zinc-400">
+                  Meeting Base: {fujiSpeedwayTour.data.meetingPoint} • Circuit & Gotemba Foothills
+                </div>
+              </div>
+
+              <div class="flex items-center gap-3 shrink-0 self-end md:self-center">
+                <span class="text-xs font-bold uppercase tracking-wider text-red-600 group-hover:underline">
+                  Tour Details
+                </span>
+                <div class="flex items-center justify-center w-11 h-11 rounded-full bg-zinc-100 text-zinc-400 transition-all duration-300 group-hover:bg-red-600 group-hover:text-white group-hover:translate-x-1 shadow-xs">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="w-5 h-5"
+                  >
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                    <polyline points="12 5 19 12 12 19"></polyline>
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </a>
+      </section>
+    )}
+  </main>
+</Layout>
