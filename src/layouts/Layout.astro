@@ -11,6 +11,7 @@ const {
   title = "Tokyoride | AHS JDM Experiences",
   description = "Curated JDM Tours & Garage Experiences by Sam Otani (AHS)",
 } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 ---
 
 <!doctype html>
@@ -27,7 +28,7 @@ const {
     <!-- Shared Site Header -->
     <header class="border-b border-zinc-800/80 bg-linear-to-r from-zinc-950 via-zinc-900 to-zinc-950 text-white shadow-md backdrop-blur-md sticky top-0 z-50">
       <div class="max-w-6xl mx-auto px-4 sm:px-6 h-18 sm:h-20 flex items-center justify-between gap-3">
-        <a href="/" class="flex flex-col group transition-opacity hover:opacity-95 min-w-0">
+        <a href={`${base}/`} class="flex flex-col group transition-opacity hover:opacity-95 min-w-0">
           <span class="text-xl sm:text-2xl font-black tracking-tight uppercase text-white group-hover:text-red-500 transition-colors truncate">
             Tokyoride
           </span>
@@ -39,19 +40,19 @@ const {
         <!-- Desktop Navigation -->
         <nav class="hidden md:flex items-center gap-1 sm:gap-2">
           <a
-            href="/#tours"
+            href={`${base}/#tours`}
             class="relative px-3.5 py-2 text-xs sm:text-sm font-semibold tracking-wider uppercase text-zinc-200 rounded-lg transition-all duration-300 border border-transparent hover:text-white hover:border-red-500/50 hover:bg-linear-to-r hover:from-red-600/20 hover:via-amber-500/20 hover:to-red-600/20 hover:shadow-[0_0_15px_rgba(239,68,68,0.35)]"
           >
             Tours
           </a>
           <a
-            href="/about"
+            href={`${base}/about`}
             class="relative px-3.5 py-2 text-xs sm:text-sm font-semibold tracking-wider uppercase text-zinc-200 rounded-lg transition-all duration-300 border border-transparent hover:text-white hover:border-red-500/50 hover:bg-linear-to-r hover:from-red-600/20 hover:via-amber-500/20 hover:to-red-600/20 hover:shadow-[0_0_15px_rgba(239,68,68,0.35)]"
           >
             About Us
           </a>
           <a
-            href="/contact"
+            href={`${base}/contact`}
             class="relative px-3.5 py-2 text-xs sm:text-sm font-semibold tracking-wider uppercase text-zinc-200 rounded-lg transition-all duration-300 border border-transparent hover:text-white hover:border-red-500/50 hover:bg-linear-to-r hover:from-red-600/20 hover:via-amber-500/20 hover:to-red-600/20 hover:shadow-[0_0_15px_rgba(239,68,68,0.35)]"
           >
             Contact
@@ -81,19 +82,19 @@ const {
       <!-- Mobile Dropdown Menu -->
       <div id="mobile-menu" class="hidden md:hidden border-t border-zinc-800 bg-zinc-950/98 backdrop-blur-xl px-4 py-4 space-y-2">
         <a
-          href="/#tours"
+          href={`${base}/#tours`}
           class="block px-4 py-2.5 rounded-lg text-sm font-semibold uppercase tracking-wider text-zinc-200 hover:text-white hover:bg-red-600/20 hover:border hover:border-red-500/40 transition-colors mobile-nav-link"
         >
           Tours
         </a>
         <a
-          href="/about"
+          href={`${base}/about`}
           class="block px-4 py-2.5 rounded-lg text-sm font-semibold uppercase tracking-wider text-zinc-200 hover:text-white hover:bg-red-600/20 hover:border hover:border-red-500/40 transition-colors mobile-nav-link"
         >
           About Us
         </a>
         <a
-          href="/contact"
+          href={`${base}/contact`}
           class="block px-4 py-2.5 rounded-lg text-sm font-semibold uppercase tracking-wider text-zinc-200 hover:text-white hover:bg-red-600/20 hover:border hover:border-red-500/40 transition-colors mobile-nav-link"
         >
           Contact
