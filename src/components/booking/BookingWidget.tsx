@@ -336,8 +336,8 @@ export default function BookingWidget({
                     )}
                   </span>
                   <span className="min-w-0">
-                    <span className="block truncate text-sm font-semibold text-ink">{car.name}</span>
-                    <span className="mono-label block truncate text-xs text-ink/55">
+                    <span className="block text-sm font-semibold leading-tight text-ink">{car.name}</span>
+                    <span className="mono-label mt-1 block text-xs leading-tight text-ink/55">
                       {car.chassisCode} · {car.seats} seats
                     </span>
                   </span>

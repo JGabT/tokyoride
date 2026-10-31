@@ -360,6 +360,12 @@
 }
 
 /* Booking calendar */
+@media (max-width: 380px) {
+  /* 7 columns of 36px do not fit the widget on small phones. */
+  .booking-calendar {
+    --cell-size: 2rem;
+  }
+}
 .booking-calendar .rdp-month_caption {
   font-family: var(--font-mono);
   font-size: 0.75rem;

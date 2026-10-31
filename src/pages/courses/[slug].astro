@@ -127,7 +127,7 @@ const next = departures[0];
 
     <div class="mx-auto grid max-w-6xl gap-10 px-5 py-12 lg:grid-cols-[1fr_400px]">
       <!-- LEFT -->
-      <div class="space-y-12">
+      <div class="min-w-0 space-y-12">
         <section>
           <p class="section-label">The route</p>
           <div class="mt-4 space-y-4 text-sm leading-relaxed text-ink/85 sm:text-base">
@@ -237,7 +237,7 @@ const next = departures[0];
       </div>
 
       <!-- RIGHT -->
-      <aside id="reserve" class="scroll-mt-24 lg:sticky lg:top-24 lg:self-start">
+      <aside id="reserve" class="min-w-0 scroll-mt-24 lg:sticky lg:top-24 lg:self-start">
         <BookingWidget
           client:load
           tourId={tour.id}
