@@ -22,7 +22,7 @@ export const GET: APIRoute = async ({ url }) => {
     });
   }
 
-  const checkout = await startCheckout(booking.id);
+  const checkout = await startCheckout(booking.id, url.origin);
   return new Response(null, {
     status: 302,
     headers: { Location: checkout.url },

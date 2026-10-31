@@ -5,7 +5,9 @@ import { adminUsers, sessions } from "./db/schema";
 import { sha256 } from "./ids";
 
 const COOKIE = "tr_session";
-const ITERATIONS = 150_000;
+// Cloudflare Workers rejects PBKDF2 above 100k iterations, so this is both the
+// storage cost and the platform ceiling. Do not raise it.
+const ITERATIONS = 100_000;
 
 function b64(bytes: ArrayBuffer): string {
   const arr = new Uint8Array(bytes);

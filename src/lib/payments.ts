@@ -12,7 +12,14 @@ export function paymentMode(): PaymentMode {
   return env("AIRPAY_MODE") === "live" ? "live" : "mock";
 }
 
-export function publicBaseUrl(): string {
+/**
+ * Base URL used to build absolute links (checkout redirects, return URLs).
+ * Callers pass the incoming request origin so links always point at the host
+ * the guest is actually using — workers.dev, a preview URL, localhost or the
+ * production domain. PUBLIC_BASE_URL is only the fallback.
+ */
+export function publicBaseUrl(origin?: string): string {
+  if (origin) return origin.replace(/\/$/, "");
   return env("PUBLIC_BASE_URL", "http://localhost:4321");
 }
 
@@ -29,7 +36,10 @@ export type CheckoutSession = {
  * In mock mode this points at /pay/mock/:id which reproduces the AirPay
  * hosted page and settles through the same webhook path as production.
  */
-export async function startCheckout(bookingId: string): Promise<CheckoutSession> {
+export async function startCheckout(
+  bookingId: string,
+  origin?: string,
+): Promise<CheckoutSession> {
   const detail = await getBookingDetail(bookingId);
   if (!detail) throw new Error("Booking not found");
   if (detail.booking.status !== "pending") {
@@ -47,10 +57,27 @@ export async function startCheckout(bookingId: string): Promise<CheckoutSession>
   if (existing.length) {
     try {
       const payload = JSON.parse(existing[0].payload);
+      // Mock checkouts are cheap to rebuild; keep the link on the host the
+      // guest is using instead of a stale absolute URL.
+      const url =
+        existing[0].provider === "airpay-mock"
+          ? `${publicBaseUrl(origin)}/pay/mock/${bookingId}?t=${detail.booking.accessToken}`
+          : payload.checkoutUrl;
+
+      if (existing[0].provider === "airpay-mock" && payload.checkoutUrl !== url) {
+        await db
+          .update(payments)
+          .set({
+            payload: JSON.stringify({ ...payload, checkoutUrl: url }),
+            updatedAt: Date.now(),
+          })
+          .where(eq(payments.id, existing[0].id));
+      }
+
       return {
         provider: existing[0].provider,
         checkoutId: existing[0].providerCheckoutId,
-        url: payload.checkoutUrl,
+        url,
         amountJpy: existing[0].amountJpy,
       };
     } catch {
@@ -61,13 +88,13 @@ export async function startCheckout(bookingId: string): Promise<CheckoutSession>
   const provider = paymentMode() === "live" ? "airpay" : "airpay-mock";
   const checkoutId =
     paymentMode() === "live"
-      ? await createAirpayCheckout(detail)
+      ? await createAirpayCheckout(detail, origin)
       : `mock_${newId("chk")}`;
 
   const url =
     paymentMode() === "live"
       ? checkoutId
-      : `${publicBaseUrl()}/pay/mock/${bookingId}?t=${detail.booking.accessToken}`;
+      : `${publicBaseUrl(origin)}/pay/mock/${bookingId}?t=${detail.booking.accessToken}`;
 
   if (paymentMode() === "live") {
     await db.insert(payments).values({
@@ -120,6 +147,7 @@ export async function startCheckout(bookingId: string): Promise<CheckoutSession>
  */
 async function createAirpayCheckout(
   detail: NonNullable<Awaited<ReturnType<typeof getBookingDetail>>>,
+  origin?: string,
 ): Promise<string> {
   const base = env("AIRPAY_BASE_URL");
   const merchantId = env("AIRPAY_MERCHANT_ID");
@@ -135,7 +163,7 @@ async function createAirpayCheckout(
     merchant_ext_id: merchantId,
     amount: detail.booking.totalJpy,
     currency: "JPY",
-    return_url: `${publicBaseUrl()}/bookings/${detail.booking.ref}?t=${detail.booking.accessToken}`,
+    return_url: `${publicBaseUrl(origin)}/bookings/${detail.booking.ref}?t=${detail.booking.accessToken}`,
     locale: "en",
     items: detail.cars.map((c) => ({
       name: `${detail.tour.title} — ${c.vehicle.name}`,

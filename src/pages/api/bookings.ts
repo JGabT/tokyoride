@@ -64,7 +64,10 @@ export const POST: APIRoute = async ({ request }) => {
   if (!result.ok) return json({ error: result.reason }, 400);
 
   try {
-    const checkout = await startCheckout(result.bookingId);
+    const checkout = await startCheckout(
+      result.bookingId,
+      new URL(request.url).origin,
+    );
     return json({
       ref: result.ref,
       totalJpy: result.totalJpy,

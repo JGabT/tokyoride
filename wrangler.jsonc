@@ -27,7 +27,7 @@
     }
   ],
   "vars": {
-    "PUBLIC_BASE_URL": "https://tokyoride.co",
+    "PUBLIC_BASE_URL": "https://tokyoride.jgabt.workers.dev",
     "AIRPAY_MODE": "mock",
     "BOOKING_LEAD_HOURS": "6",
     "ADMIN_ALERT_EMAIL": "hello@tokyoride.co"

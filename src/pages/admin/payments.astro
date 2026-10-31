@@ -9,7 +9,7 @@ import { formatJpy, jstDateKey, jstTime } from "@/lib/dates";
 
 const user = Astro.locals.user;
 const mode = paymentMode();
-const base = publicBaseUrl();
+const base = publicBaseUrl(Astro.url.origin);
 
 const rows = await db
   .select({ payment: payments, booking: bookings, customer: customers })
