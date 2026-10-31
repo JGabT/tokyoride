@@ -1,0 +1,61 @@
+---
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import { getSettings, SETTING_KEYS } from "@/lib/settings";
+
+const user = Astro.locals.user;
+const settings = await getSettings();
+const saved = Astro.url.searchParams.get("saved");
+const seeded = Astro.url.searchParams.get("seeded");
+const seedError = Astro.url.searchParams.get("error");
+
+const groups: { title: string; keys: (typeof SETTING_KEYS)[number][] }[] = [
+  { title: "Brand", keys: ["brand_name", "tagline", "legal_name"] },
+  { title: "Hero", keys: ["hero_kicker", "hero_title", "hero_body", "hero_image"] },
+  { title: "Base", keys: ["address", "lat", "lng", "hours"] },
+  { title: "Contact", keys: ["email", "phone", "instagram"] },
+  { title: "Legal", keys: ["legal_address", "legal_phone", "legal_responsible", "travel_registration"] },
+  { title: "Policy", keys: ["cancellation_policy"] },
+];
+
+const longFields = new Set(["hero_body", "cancellation_policy"]);
+---
+
+<AdminLayout title="Settings" active="settings" user={user}>
+  {saved && <p class="mb-4 border border-signal/40 bg-signal/10 px-3 py-2 text-sm text-ink">Settings saved.</p>}
+  {seeded && (
+    <p class="mb-4 border border-signal/40 bg-signal/10 px-3 py-2 text-sm text-ink">
+      Seeded {seeded} courses and demo departures. Admin credentials now come from
+      ADMIN_EMAIL / ADMIN_PASSWORD.
+    </p>
+  )}
+  {seedError === "confirm" && (
+    <p class="mb-4 border border-signal/40 bg-signal/10 px-3 py-2 text-sm text-ink">
+      Type RESET to confirm the wipe.
+    </p>
+  )}
+
+  <form method="POST" action="/api/admin/settings" class="space-y-6">
+    {groups.map((group) => (
+      <section class="admin-card p-5">
+        <p class="section-label">{group.title}</p>
+        <div class="mt-4 grid gap-4 sm:grid-cols-2">
+          {group.keys.map((key) => (
+            <div class:list={[longFields.has(key) ? "sm:col-span-2" : ""]}>
+              <label class="lbl" for={key}>{key.replaceAll("_", " ")}</label>
+              {longFields.has(key) ? (
+                <textarea id={key} name={key} rows="4" class="field">{settings[key]}</textarea>
+              ) : (
+                <input id={key} name={key} class="field" value={settings[key]} />
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
+    ))}
+
+    <div class="flex items-center gap-3">
+      <button class="hard-btn">Save settings</button>
+      <p class="mono-label text-ink/45">Legal fields appear on /legal/tokushoho</p>
+    </div>
+  </form>
+</AdminLayout>

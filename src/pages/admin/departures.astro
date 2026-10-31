@@ -1,0 +1,414 @@
+---
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import { and, asc, eq, gte, inArray, lt, sql } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { bookings, departures, resourceBlocks, tours, vehicles } from "@/lib/db/schema";
+import { getAllTours, getVehicles } from "@/lib/catalog";
+import { addDays, formatJpy, jstDateKey, jstTime, jstToUtc } from "@/lib/dates";
+
+const user = Astro.locals.user;
+const params = Astro.url.searchParams;
+
+const todayKey = jstDateKey(Date.now());
+const requestedMonth = params.get("month");
+
+let monthParam: string;
+if (requestedMonth && /^\d{4}-\d{2}$/.test(requestedMonth)) {
+  monthParam = requestedMonth;
+} else {
+  const [nextRow] = await db
+    .select({ next: sql<number | null>`min(${departures.startsAt})` })
+    .from(departures)
+    .where(gte(departures.startsAt, Date.now()));
+  monthParam = nextRow?.next ? jstDateKey(nextRow.next).slice(0, 7) : todayKey.slice(0, 7);
+}
+
+const [year, month] = monthParam.split("-").map(Number);
+const firstKey = `${monthParam}-01`;
+const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+const firstWeekday = new Date(`${firstKey}T00:00:00Z`).getUTCDay();
+const leading = (firstWeekday + 6) % 7; // Monday-first
+const weeks = Math.ceil((leading + daysInMonth) / 7);
+const gridStart = addDays(firstKey, -leading);
+const gridDays = Array.from({ length: weeks * 7 }, (_, i) => addDays(gridStart, i));
+
+const rangeFrom = jstToUtc(gridStart, "00:00");
+const rangeTo = jstToUtc(addDays(gridDays[gridDays.length - 1], 1), "00:00");
+
+const [tourList, fleet] = await Promise.all([getAllTours(), getVehicles(false)]);
+
+const rows = await db
+  .select({ departure: departures, tour: tours })
+  .from(departures)
+  .innerJoin(tours, eq(tours.id, departures.tourId))
+  .where(and(gte(departures.startsAt, rangeFrom), lt(departures.startsAt, rangeTo)))
+  .orderBy(asc(departures.startsAt));
+
+const loadRows = await db
+  .select({
+    departureId: bookings.departureId,
+    n: sql<number>`count(*)`,
+    value: sql<number>`coalesce(sum(${bookings.totalJpy}), 0)`,
+  })
+  .from(bookings)
+  .where(inArray(bookings.status, ["pending", "confirmed"]))
+  .groupBy(bookings.departureId);
+
+const load = new Map(loadRows.map((r) => [r.departureId, r]));
+
+type Entry = {
+  departure: typeof departures.$inferSelect;
+  tour: typeof tours.$inferSelect;
+  booked: number;
+  value: number;
+};
+
+const byDay = new Map<string, Entry[]>();
+for (const { departure, tour } of rows) {
+  const key = jstDateKey(departure.startsAt);
+  const stat = load.get(departure.id);
+  if (!byDay.has(key)) byDay.set(key, []);
+  byDay.get(key)!.push({
+    departure,
+    tour,
+    booked: stat?.n ?? 0,
+    value: stat?.value ?? 0,
+  });
+}
+
+const firstWithData = [...byDay.keys()]
+  .filter((k) => k.startsWith(monthParam))
+  .sort()[0];
+
+const selectedDay = (() => {
+  const requested = params.get("day");
+  if (requested && gridDays.includes(requested) && requested.startsWith(monthParam)) {
+    return requested;
+  }
+  if (firstWithData) return firstWithData;
+  return gridDays.find((d) => d.startsWith(monthParam)) ?? firstKey;
+})();
+
+const selectedEntries = byDay.get(selectedDay) ?? [];
+const monthEntries = rows.filter((r) => jstDateKey(r.departure.startsAt).startsWith(monthParam));
+
+const monthStats = {
+  departures: monthEntries.length,
+  cars: monthEntries.reduce((sum, r) => sum + (load.get(r.departure.id)?.n ?? 0), 0),
+  revenue: monthEntries.reduce((sum, r) => sum + (load.get(r.departure.id)?.value ?? 0), 0),
+};
+
+const blocks = await db
+  .select({ block: resourceBlocks, vehicle: vehicles })
+  .from(resourceBlocks)
+  .leftJoin(vehicles, eq(vehicles.id, resourceBlocks.resourceId))
+  .where(and(eq(resourceBlocks.kind, "maintenance"), gte(resourceBlocks.endsAt, Date.now())))
+  .orderBy(asc(resourceBlocks.startsAt));
+
+const saved = params.get("saved");
+const error = params.get("error");
+
+const monthLabel = new Intl.DateTimeFormat("en-GB", {
+  month: "long",
+  year: "numeric",
+  timeZone: "UTC",
+}).format(new Date(`${firstKey}T00:00:00Z`));
+
+const dayLabel = new Intl.DateTimeFormat("en-GB", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  timeZone: "UTC",
+}).format(new Date(`${selectedDay}T00:00:00Z`));
+
+const prevMonth = new Date(Date.UTC(year, month - 2, 1)).toISOString().slice(0, 7);
+const nextMonth = new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 7);
+
+const back = `/admin/departures?month=${monthParam}&day=${selectedDay}`;
+const SHORT_NAMES: Record<string, string> = {
+  "course-a": "Course A",
+  "course-b": "Course B",
+  "course-c": "Course C",
+};
+
+const shortTitle = (tour: { id: string; title: string }) =>
+  SHORT_NAMES[tour.id] ??
+  tour.title.replace(/&/g, " ").split(/\s+/).slice(0, 2).join(" ");
+---
+
+<AdminLayout title="Calendar" active="departures" user={user}>
+  {saved && (
+    <p class="mb-4 border border-signal/40 bg-signal/10 px-3 py-2 text-sm text-ink">Saved.</p>
+  )}
+  {params.get("filled") && (
+    <p class="mb-4 border border-signal/40 bg-signal/10 px-3 py-2 text-sm text-ink">
+      Added {params.get("filled")} departures across all routes.
+    </p>
+  )}
+  {error && (
+    <p class="mb-4 border border-signal/40 bg-signal/10 px-3 py-2 text-sm text-ink">
+      {error === "duplicate" ? "That departure already exists." : "Fill in the required fields."}
+    </p>
+  )}
+
+  <div class="mb-5 flex flex-wrap items-center justify-between gap-4">
+    <div class="flex items-center gap-2">
+      <a
+        href={`/admin/departures?month=${prevMonth}`}
+        class="mono-label border border-ink/20 px-3 py-2 hover:border-ink/50"
+      >
+        ← Prev
+      </a>
+      <p class="font-display min-w-[190px] text-center text-2xl text-ink">{monthLabel}</p>
+      <a
+        href={`/admin/departures?month=${nextMonth}`}
+        class="mono-label border border-ink/20 px-3 py-2 hover:border-ink/50"
+      >
+        Next →
+      </a>
+      <a
+        href="/admin/departures"
+        class="mono-label border border-signal/40 bg-signal/10 px-3 py-2 text-signal-deep hover:bg-signal/20"
+      >
+        Today
+      </a>
+      <form method="POST" action="/api/admin/departure">
+        <input type="hidden" name="action" value="fill" />
+        <input type="hidden" name="back" value={back} />
+        <button class="mono-label border border-ink/25 px-3 py-2 hover:border-ink/60">
+          Fill 90 days
+        </button>
+      </form>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-5">
+      <p class="mono-label text-ink/60">
+        {monthStats.departures} departure{monthStats.departures === 1 ? "" : "s"} ·{" "}
+        {monthStats.cars} car{monthStats.cars === 1 ? "" : "s"} ·{" "}
+        {formatJpy(monthStats.revenue)}
+      </p>
+      <div class="flex items-center gap-3">
+        <span class="mono-label flex items-center gap-1.5 text-ink/60">
+          <span class="h-2.5 w-2.5 bg-ink"></span> open
+        </span>
+        <span class="mono-label flex items-center gap-1.5 text-ink/60">
+          <span class="h-2.5 w-2.5 bg-signal"></span> full
+        </span>
+        <span class="mono-label flex items-center gap-1.5 text-ink/60">
+          <span class="h-2.5 w-2.5 bg-ink/25"></span> closed
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid gap-5 xl:grid-cols-[1fr_380px]">
+    <!-- MONTH GRID -->
+    <section class="admin-card overflow-x-auto">
+      <div class="min-w-[760px]">
+      <div class="grid grid-cols-7 border-b border-ink/12 bg-paper/60">
+        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+          <div class="mono-label border-r border-ink/10 px-3 py-3 text-ink/55 last:border-r-0">
+            {d}
+          </div>
+        ))}
+      </div>
+
+      <div class="grid grid-cols-7">
+        {gridDays.map((key) => {
+          const inMonth = key.startsWith(monthParam);
+          const isToday = key === todayKey;
+          const isSelected = key === selectedDay;
+          const entries = byDay.get(key) ?? [];
+          const number = Number(key.slice(8, 10));
+          return (
+            <a
+              href={`/admin/departures?month=${monthParam}&day=${key}`}
+              class:list={[
+                "group relative min-h-[132px] border-b border-r border-ink/10 p-2 transition-colors last:border-r-0",
+                inMonth ? "bg-white" : "bg-paper/50",
+                isSelected ? "ring-2 ring-inset ring-signal" : "hover:bg-paper/70",
+              ]}
+            >
+              <div class="mb-1.5 flex items-center justify-between">
+                <span
+                  class:list={[
+                    "font-mono text-sm",
+                    inMonth ? "text-ink" : "text-ink/30",
+                    isToday ? "bg-ink px-1.5 py-0.5 text-white" : "",
+                  ]}
+                >
+                  {number}
+                </span>
+                {isToday && <span class="mono-label text-signal-deep">Today</span>}
+              </div>
+
+              <div class="space-y-1">
+                {entries.map((entry) => {
+                  const full = entry.booked >= entry.departure.capacity;
+                  const closed = entry.departure.status === "closed";
+                  return (
+                    <div
+                      class:list={[
+                        "flex items-center gap-1 border-l-2 px-1.5 py-1",
+                        closed
+                          ? "border-ink/20 bg-ink/5 text-ink/40"
+                          : full
+                            ? "border-signal bg-signal/10 text-signal-deep"
+                            : "border-ink/60 bg-paper/70 text-ink",
+                      ]}
+                      title={`${jstTime(entry.departure.startsAt)} ${entry.tour.title} — ${entry.booked}/${entry.departure.capacity} cars`}
+                    >
+                      <span class="shrink-0 font-mono text-[11px] font-medium">
+                        {jstTime(entry.departure.startsAt)}
+                      </span>
+                      <span class="truncate text-[11px] leading-tight">
+                        {shortTitle(entry.tour)}
+                      </span>
+                      {entry.booked > 0 && (
+                        <span class="ml-auto shrink-0 font-mono text-[10px] opacity-70">
+                          {entry.booked}/{entry.departure.capacity}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </a>
+          );
+        })}
+      </div>
+      </div>
+    </section>
+
+    <!-- DAY PANEL -->
+    <aside class="space-y-5">
+      <section class="admin-card">
+        <div class="border-b border-ink/12 px-4 py-3">
+          <p class="mono-label text-signal-deep">{dayLabel}</p>
+          <p class="mt-1 text-sm text-ink/55">
+            {selectedEntries.length === 0
+              ? "No departures"
+              : `${selectedEntries.length} departure${selectedEntries.length === 1 ? "" : "s"} · ${selectedEntries.reduce((s, e) => s + e.booked, 0)} car${selectedEntries.reduce((s, e) => s + e.booked, 0) === 1 ? "" : "s"}`}
+          </p>
+        </div>
+
+        <div class="divide-y divide-ink/10">
+          {selectedEntries.length === 0 && (
+            <p class="px-4 py-6 text-sm text-ink/45">
+              Nothing scheduled. Add one below.
+            </p>
+          )}
+          {selectedEntries.map((entry) => (
+            <div class="px-4 py-3">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <p class="font-mono text-sm text-ink">
+                    {jstTime(entry.departure.startsAt)}–{jstTime(entry.departure.endsAt)}
+                  </p>
+                  <p class="mt-0.5 text-sm font-medium text-ink">{entry.tour.title}</p>
+                  <p class="mono-label mt-1 text-ink/45">
+                    {entry.booked}/{entry.departure.capacity} cars · {formatJpy(entry.value)}
+                    {entry.departure.status === "closed" ? " · closed" : ""}
+                  </p>
+                </div>
+              </div>
+
+              <div class="mt-2 flex gap-2">
+                <form method="POST" action="/api/admin/departure">
+                  <input type="hidden" name="action" value={entry.departure.status === "open" ? "close" : "open"} />
+                  <input type="hidden" name="id" value={entry.departure.id} />
+                  <input type="hidden" name="back" value={back} />
+                  <button class="mono-label border border-ink/20 px-2 py-1.5 hover:border-ink/50">
+                    {entry.departure.status === "open" ? "Close" : "Reopen"}
+                  </button>
+                </form>
+                <form method="POST" action="/api/admin/departure">
+                  <input type="hidden" name="action" value="delete" />
+                  <input type="hidden" name="id" value={entry.departure.id} />
+                  <input type="hidden" name="back" value={back} />
+                  <button class="mono-label border border-ink/20 px-2 py-1.5 text-ink/45 hover:text-signal-deep">
+                    Delete
+                  </button>
+                </form>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section class="admin-card p-4">
+        <p class="mono-label text-signal-deep">Add departure</p>
+        <form method="POST" action="/api/admin/departure" class="mt-3 space-y-3">
+          <input type="hidden" name="action" value="create" />
+          <input type="hidden" name="back" value={back} />
+          <div>
+            <label class="lbl" for="tourId">Route</label>
+            <select id="tourId" name="tourId" class="field" required>
+              {tourList.map((t) => <option value={t.id}>{t.title}</option>)}
+            </select>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="lbl" for="date">Date</label>
+              <input id="date" type="date" name="date" class="field" required value={selectedDay} />
+            </div>
+            <div>
+              <label class="lbl" for="time">Time (JST)</label>
+              <input id="time" type="time" name="time" class="field" value="19:00" required />
+            </div>
+          </div>
+          <div>
+            <label class="lbl" for="capacity">Max cars</label>
+            <input id="capacity" type="number" name="capacity" min="1" max="8" class="field" value="4" />
+          </div>
+          <button class="hard-btn w-full">Add departure</button>
+        </form>
+      </section>
+
+      <details class="admin-card p-4">
+        <summary class="mono-label cursor-pointer text-signal-deep">Block a car for maintenance</summary>
+        <form method="POST" action="/api/admin/departure" class="mt-3 space-y-3">
+          <input type="hidden" name="action" value="block" />
+          <input type="hidden" name="back" value={back} />
+          <div>
+            <label class="lbl" for="vehicleId">Vehicle</label>
+            <select id="vehicleId" name="vehicleId" class="field" required>
+              {fleet.map((v) => <option value={v.id}>{v.name}</option>)}
+            </select>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="lbl" for="blockdate">Date</label>
+              <input id="blockdate" type="date" name="date" class="field" required value={selectedDay} />
+            </div>
+            <div>
+              <label class="lbl" for="blockfrom">From</label>
+              <input id="blockfrom" type="time" name="time" class="field" value="09:00" />
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="lbl" for="hours">Hours</label>
+              <input id="hours" type="number" name="hours" min="1" max="72" class="field" value="8" />
+            </div>
+            <div>
+              <label class="lbl" for="note">Note</label>
+              <input id="note" name="note" class="field" placeholder="Service" />
+            </div>
+          </div>
+          <button class="hard-btn hard-btn--ghost w-full">Block car</button>
+        </form>
+
+        {blocks.length > 0 && (
+          <div class="mt-4 space-y-1 border-t border-ink/10 pt-3">
+            {blocks.map(({ block, vehicle }) => (
+              <p class="text-xs text-ink/50">
+                {vehicle?.chassisCode || vehicle?.name} · {jstDateKey(block.startsAt)} {jstTime(block.startsAt)} · {block.note}
+              </p>
+            ))}
+          </div>
+        )}
+      </details>
+    </aside>
+  </div>
+</AdminLayout>

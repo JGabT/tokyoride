@@ -1,0 +1,149 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { receipts } from "@/lib/db/schema";
+import { getBookingByRef, getBookingDetail } from "@/lib/receipts";
+import { formatJpy, jstLong, jstTime } from "@/lib/dates";
+import { getSettings } from "@/lib/settings";
+
+const { ref } = Astro.params;
+const token = Astro.url.searchParams.get("t") ?? "";
+const booking = ref ? await getBookingByRef(ref) : null;
+
+if (!booking || booking.accessToken !== token) {
+  return Astro.redirect("/courses");
+}
+
+const detail = await getBookingDetail(booking.id);
+if (!detail) return Astro.redirect("/courses");
+
+const settings = await getSettings();
+const receiptRows = await db.select().from(receipts).where(eq(receipts.bookingId, booking.id));
+const receipt = receiptRows[0];
+
+const statusCopy: Record<string, { label: string; tone: string; body: string }> = {
+  pending: {
+    label: "Awaiting payment",
+    tone: "text-utility border-utility/40",
+    body: "Your cars are held for 30 minutes. Complete payment to confirm the booking.",
+  },
+  confirmed: {
+    label: "Confirmed",
+    tone: "text-signal border-signal/50",
+    body: "You're booked. Bring your passport, home license and IDP to the pickup.",
+  },
+  paid: {
+    label: "Confirmed",
+    tone: "text-signal border-signal/50",
+    body: "You're booked. Bring your passport, home license and IDP to the pickup.",
+  },
+  cancelled: {
+    label: "Cancelled",
+    tone: "text-ink/65 border-ink/20",
+    body: "This booking was cancelled. The cars have been released.",
+  },
+  expired: {
+    label: "Expired",
+    tone: "text-ink/65 border-ink/20",
+    body: "The payment window closed and the cars were released. Start a new booking.",
+  },
+  refunded: {
+    label: "Refunded",
+    tone: "text-ink/65 border-ink/20",
+    body: "This booking has been refunded.",
+  },
+};
+
+const state = statusCopy[detail.booking.status] ?? statusCopy.pending;
+---
+
+<Layout title={`Booking ${detail.booking.ref} | ${settings.brand_name}`} description="Your Tokyoride booking.">
+  <main class="mx-auto max-w-3xl px-5 py-14 sm:py-20">
+    <div class:list={["inline-flex border px-3 py-1.5 mono-label", state.tone]}>
+      {state.label}
+    </div>
+
+    <h1 class="display mt-5 text-[clamp(2.2rem,6vw,4rem)] text-ink">
+      {detail.booking.ref}
+    </h1>
+    <p class="mt-3 text-sm leading-relaxed text-ink/75">{state.body}</p>
+
+    <div class="mt-8 border border-ink/12 bg-white">
+      <div class="border-b border-ink/10 p-6">
+        <p class="section-label">Booking</p>
+        <p class="mt-2 font-display text-2xl text-ink">{detail.tour.title}</p>
+        <p class="mono-label mt-2 text-ink/55">{detail.tour.meetingLabel}</p>
+      </div>
+
+      <dl class="divide-y divide-ink/10">
+        <div class="flex justify-between gap-4 p-5">
+          <dt class="mono-label text-ink/55">Pickup</dt>
+          <dd class="text-right text-sm text-ink">
+            {jstLong(detail.departure.startsAt)} · {jstTime(detail.departure.startsAt)} JST
+          </dd>
+        </div>
+        <div class="flex justify-between gap-4 p-5">
+          <dt class="mono-label text-ink/55">Return</dt>
+          <dd class="text-right text-sm text-ink">
+            {jstLong(detail.departure.endsAt)} · {jstTime(detail.departure.endsAt)} JST
+          </dd>
+        </div>
+        {detail.booking.pickup && (
+          <div class="flex justify-between gap-4 p-5">
+            <dt class="mono-label text-ink/55">Pickup point</dt>
+            <dd class="text-right text-sm text-ink">{detail.booking.pickup}</dd>
+          </div>
+        )}
+        {detail.booking.dropoff && (
+          <div class="flex justify-between gap-4 p-5">
+            <dt class="mono-label text-ink/55">Drop-off point</dt>
+            <dd class="text-right text-sm text-ink">{detail.booking.dropoff}</dd>
+          </div>
+        )}
+        <div class="flex justify-between gap-4 p-5">
+          <dt class="mono-label text-ink/55">Cars</dt>
+          <dd class="text-right text-sm text-ink">
+            {detail.cars.map((c) => (
+              <span class="block">{c.vehicle.name} · {c.link.driverName}</span>
+            ))}
+          </dd>
+        </div>
+        <div class="flex justify-between gap-4 p-5">
+          <dt class="mono-label text-ink/55">Contact</dt>
+          <dd class="text-right text-sm text-ink">
+            {detail.customer.name}<br />
+            <span class="text-ink/65">{detail.customer.email}</span>
+          </dd>
+        </div>
+        <div class="flex items-end justify-between gap-4 p-5">
+          <dt class="mono-label text-ink/55">Total</dt>
+          <dd class="text-right">
+            <span class="font-display text-3xl text-ink">{formatJpy(detail.booking.totalJpy)}</span>
+            <span class="mono-label block text-ink/50">Tax included</span>
+          </dd>
+        </div>
+      </dl>
+    </div>
+
+    <div class="mt-6 flex flex-wrap gap-3">
+      {detail.booking.status === "pending" && (
+        <a href={`/api/payments/start?ref=${detail.booking.ref}&t=${detail.booking.accessToken}`} class="hard-btn">
+          Complete payment
+        </a>
+      )}
+      {receipt && (
+        <a href={`/receipt/${receipt.token}`} class="hard-btn hard-btn--ghost">View receipt</a>
+      )}
+      <a href="/courses" class="hard-btn hard-btn--ghost">Book another course</a>
+    </div>
+
+    <div class="mt-10 border border-ink/10 p-5 text-xs leading-relaxed text-ink/60">
+      <p class="mono-label mb-2 text-ink/45">Pickup checklist</p>
+      {detail.tour.driverMode === "self"
+        ? "Passport · home driving license · International Driving Permit · closed shoes."
+        : "Passport · comfortable clothes · camera. Your driver handles the rest."}
+      Arrive 15 minutes early for the walkaround. {settings.cancellation_policy}
+    </div>
+  </main>
+</Layout>

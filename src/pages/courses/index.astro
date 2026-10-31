@@ -1,0 +1,57 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import TourTile from "@/components/site/TourTile.astro";
+import { getActiveTours, getFromPrice } from "@/lib/catalog";
+import { getSettings } from "@/lib/settings";
+
+const settings = await getSettings();
+const tours = await getActiveTours();
+const prices = await Promise.all(tours.map((t) => getFromPrice(t.id)));
+---
+
+<Layout title={`Courses | ${settings.brand_name}`} description="JDM driving courses from Fujisawa, Kanagawa. With a driver, self drive, or point to point.">
+  <main class="mx-auto max-w-6xl px-5 py-14 sm:py-20">
+    <p class="section-label">Routes</p>
+    <h1 class="display mt-3 text-[clamp(2.6rem,8vw,5.5rem)] text-ink">
+      Three ways<br />to drive<span class="text-signal">.</span>
+    </h1>
+    <p class="mt-5 max-w-xl text-sm leading-relaxed text-ink/70 sm:text-base">
+      Course A puts one of our drivers behind the wheel. Course B hands you the keys.
+      Course C takes you from point A to point B in the car you pick. All three start
+      from our Fujisawa base.
+    </p>
+
+    <div class="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      {tours.map((tour, i) => (
+        <TourTile tour={tour} price={prices[i]} />
+      ))}
+    </div>
+
+    <div class="mt-16 border border-ink/12 bg-white p-6 sm:p-8">
+      <p class="section-label">Requirements</p>
+      <div class="mt-4 grid gap-6 sm:grid-cols-3">
+        <div>
+          <p class="font-display text-lg text-ink">License</p>
+          <p class="mt-2 text-sm leading-relaxed text-ink/65">
+            A valid home license plus an International Driving Permit under the
+            1949 Geneva Convention. Manual transmission experience required.
+          </p>
+        </div>
+        <div>
+          <p class="font-display text-lg text-ink">Age</p>
+          <p class="mt-2 text-sm leading-relaxed text-ink/65">
+            25 or older, with at least three years of licensed driving. Younger
+            drivers can request a review before booking.
+          </p>
+        </div>
+        <div>
+          <p class="font-display text-lg text-ink">Deposit</p>
+          <p class="mt-2 text-sm leading-relaxed text-ink/65">
+            Held on card at pickup. Returned after the walkaround, minus fuel and
+            any damage.
+          </p>
+        </div>
+      </div>
+    </div>
+  </main>
+</Layout>

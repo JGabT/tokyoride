@@ -1,0 +1,49 @@
+---
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import MapEditor from "@/components/admin/MapEditor.tsx";
+import { getAllTours, getTourMap, getSiteMap } from "@/lib/catalog";
+import { getSettings } from "@/lib/settings";
+
+const user = Astro.locals.user;
+const owner = Astro.url.searchParams.get("owner") ?? "site";
+const tourList = await getAllTours();
+const settings = await getSettings();
+
+const isSite = owner === "site";
+const features = isSite ? await getSiteMap() : await getTourMap(owner);
+const initial = features.length
+  ? features.map((f) => ({ kind: f.kind, label: f.label, lat: Number(f.lat), lng: Number(f.lng) }))
+  : isSite
+    ? [{ kind: "site", label: "Fujisawa base", lat: Number(settings.lat), lng: Number(settings.lng) }]
+    : [];
+---
+
+<AdminLayout title="Maps" active="map" user={user}>
+  <div class="mb-5 flex flex-wrap gap-2">
+    <a
+      href="/admin/map?owner=site"
+      class:list={["mono-label border px-3 py-1.5", isSite ? "border-signal text-signal" : "border-ink/20 text-ink/65"]}
+    >
+      Base / contact
+    </a>
+    {tourList.map((tour) => (
+      <a
+        href={`/admin/map?owner=${tour.id}`}
+        class:list={["mono-label border px-3 py-1.5", owner === tour.id ? "border-signal text-signal" : "border-ink/20 text-ink/65"]}
+      >
+        {tour.title}
+      </a>
+    ))}
+  </div>
+
+  <p class="mono-label mb-4 text-ink/50">
+    {isSite ? "Base map shown on the contact page and footer." : "Start, waypoint and end pins for this route."}
+  </p>
+
+  <MapEditor
+    client:only="react"
+    ownerType={isSite ? "site" : "tour"}
+    ownerId={isSite ? "" : owner}
+    initial={initial}
+  />
+</AdminLayout>

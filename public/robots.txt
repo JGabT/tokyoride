@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api
+Disallow: /pay
+Disallow: /bookings
+Disallow: /receipt
+
+Sitemap: https://tokyoride.co/sitemap.xml

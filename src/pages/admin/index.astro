@@ -1,0 +1,147 @@
+---
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { bookings, customers, departures, inquiries, tours } from "@/lib/db/schema";
+import { formatJpy, jstDateKey, jstTime } from "@/lib/dates";
+import { expireStaleHolds } from "@/lib/availability";
+
+const user = Astro.locals.user;
+await expireStaleHolds();
+
+const monthAgo = Date.now() - 30 * 86_400_000;
+
+const [revenueRow] = await db
+  .select({ total: sql<number>`coalesce(sum(${bookings.totalJpy}), 0)` })
+  .from(bookings)
+  .where(and(eq(bookings.status, "confirmed"), gte(bookings.createdAt, monthAgo)));
+
+const [pendingRow] = await db
+  .select({ n: sql<number>`count(*)` })
+  .from(bookings)
+  .where(eq(bookings.status, "pending"));
+
+const [confirmedRow] = await db
+  .select({ n: sql<number>`count(*)` })
+  .from(bookings)
+  .where(eq(bookings.status, "confirmed"));
+
+const [inquiryRow] = await db
+  .select({ n: sql<number>`count(*)` })
+  .from(inquiries)
+  .where(eq(inquiries.status, "new"));
+
+const upcoming = await db
+  .select({ departure: departures, tour: tours })
+  .from(departures)
+  .innerJoin(tours, eq(tours.id, departures.tourId))
+  .where(and(gte(departures.startsAt, Date.now() - 3600_000), eq(departures.status, "open")))
+  .orderBy(asc(departures.startsAt))
+  .limit(6);
+
+const loadRows = await db
+  .select({
+    departureId: bookings.departureId,
+    n: sql<number>`count(*)`,
+    seats: sql<number>`coalesce(sum(${bookings.totalJpy}), 0)`,
+  })
+  .from(bookings)
+  .where(inArray(bookings.status, ["pending", "confirmed"]))
+  .groupBy(bookings.departureId);
+
+const load = new Map(loadRows.map((r) => [r.departureId, r]));
+
+const recent = await db
+  .select({ booking: bookings, customer: customers, tour: tours, departure: departures })
+  .from(bookings)
+  .innerJoin(customers, eq(customers.id, bookings.customerId))
+  .innerJoin(departures, eq(departures.id, bookings.departureId))
+  .innerJoin(tours, eq(tours.id, departures.tourId))
+  .orderBy(desc(bookings.createdAt))
+  .limit(8);
+
+const today = jstDateKey(Date.now());
+---
+
+<AdminLayout title="Dashboard" active="dashboard" user={user}>
+  <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    {[
+      { label: "Revenue · 30d", value: formatJpy(revenueRow?.total ?? 0), tone: "text-signal" },
+      { label: "Confirmed", value: String(confirmedRow?.n ?? 0), tone: "text-ink" },
+      { label: "Awaiting payment", value: String(pendingRow?.n ?? 0), tone: "text-utility" },
+      { label: "New messages", value: String(inquiryRow?.n ?? 0), tone: "text-ink" },
+    ].map((card) => (
+      <div class="admin-card p-5">
+        <p class="mono-label text-ink/50">{card.label}</p>
+        <p class:list={["mt-2 font-mono text-3xl font-bold leading-none", card.tone]}>{card.value}</p>
+      </div>
+    ))}
+  </div>
+
+  <div class="mt-8 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+    <section class="admin-card">
+      <div class="flex items-center justify-between border-b border-ink/10 px-5 py-4">
+        <p class="section-label">Next departures</p>
+        <a href="/admin/departures" class="mono-label text-ink/55 hover:text-ink">Calendar →</a>
+      </div>
+      <div class="divide-y divide-ink/10">
+        {upcoming.length === 0 && (
+          <p class="p-5 text-sm text-ink/55">Nothing scheduled. Add dates in the calendar.</p>
+        )}
+        {upcoming.map(({ departure, tour }) => {
+          const row = load.get(departure.id);
+          return (
+            <div class="flex items-center justify-between gap-4 px-5 py-4">
+              <div>
+                <p class="text-sm font-semibold text-ink">{tour.title}</p>
+                <p class="mono-label mt-1 text-ink/50">
+                  {jstDateKey(departure.startsAt)} · {jstTime(departure.startsAt)} JST
+                  {jstDateKey(departure.startsAt) === today ? " · TODAY" : ""}
+                </p>
+              </div>
+              <div class="text-right">
+                <p class="font-mono text-sm text-ink">{row?.n ?? 0}/{departure.capacity}</p>
+                <p class="mono-label text-ink/45">{formatJpy(row?.seats ?? 0)}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+
+    <section class="admin-card">
+      <div class="flex items-center justify-between border-b border-ink/10 px-5 py-4">
+        <p class="section-label">Latest bookings</p>
+        <a href="/admin/bookings" class="mono-label text-ink/55 hover:text-ink">All →</a>
+      </div>
+      <div class="divide-y divide-ink/10">
+        {recent.length === 0 && (
+          <p class="p-5 text-sm text-ink/55">No bookings yet.</p>
+        )}
+        {recent.map(({ booking, customer, tour }) => (
+          <a href={`/admin/bookings/${booking.id}`} class="flex items-center justify-between gap-3 px-5 py-3 hover:bg-ink/5">
+            <div class="min-w-0">
+              <p class="truncate font-mono text-sm text-ink">{booking.ref}</p>
+              <p class="mono-label mt-1 truncate text-ink/50">{customer.name} · {tour.title}</p>
+            </div>
+            <div class="text-right">
+              <p class="font-mono text-sm text-ink">{formatJpy(booking.totalJpy)}</p>
+              <p class:list={[
+                "mono-label mt-1",
+                booking.status === "confirmed" ? "text-signal" : booking.status === "pending" ? "text-utility" : "text-ink/45",
+              ]}>
+                {booking.status}
+              </p>
+            </div>
+          </a>
+        ))}
+      </div>
+    </section>
+  </div>
+
+  <div class="mt-8 flex flex-wrap gap-3">
+    <a href="/admin/departures" class="hard-btn">Add departures</a>
+    <a href="/admin/rates" class="hard-btn hard-btn--ghost">Edit pricing</a>
+    <a href="/admin/map" class="hard-btn hard-btn--ghost">Edit maps</a>
+  </div>
+</AdminLayout>

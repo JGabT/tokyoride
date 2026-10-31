@@ -1,0 +1,10 @@
+# Copy to .dev.vars for local secrets. In production set these with:
+#   wrangler secret put AIRPAY_SECRET
+# Non-secret vars live in wrangler.jsonc under "vars".
+
+AIRPAY_SECRET=""
+RESEND_API_KEY=""
+EMAIL_FROM="Tokyoride <bookings@mail.tokyoride.co>"
+CRON_SECRET=""
+ADMIN_EMAIL="sam@tokyoride.co"
+ADMIN_PASSWORD="tokyoride2026"

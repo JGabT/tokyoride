@@ -1,0 +1,61 @@
+---
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import { desc } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { media } from "@/lib/db/schema";
+
+const user = Astro.locals.user;
+const rows = await db.select().from(media).orderBy(desc(media.createdAt)).limit(80);
+const uploaded = Astro.url.searchParams.get("uploaded");
+const error = Astro.url.searchParams.get("error");
+---
+
+<AdminLayout title="Media" active="media" user={user}>
+  {uploaded && (
+    <p class="mb-4 border border-signal/40 bg-signal/10 px-3 py-2 text-sm text-ink">
+      Uploaded. Copy the path below into a tour or vehicle.
+    </p>
+  )}
+  {error && (
+    <p class="mb-4 border border-signal/40 bg-signal/10 px-3 py-2 text-sm text-ink">
+      {error === "type" ? "Only JPEG, PNG, WebP, AVIF or GIF." : error === "size" ? "Max 12 MB." : "Choose a file."}
+    </p>
+  )}
+
+  <div class="grid gap-6 lg:grid-cols-[320px_1fr]">
+    <section class="admin-card p-5">
+      <p class="section-label">Upload</p>
+      <form method="POST" action="/api/admin/media" enctype="multipart/form-data" class="mt-4 space-y-3">
+        <input type="file" name="file" accept="image/*" required class="field !py-2 text-sm" />
+        <button class="hard-btn w-full">Upload image</button>
+      </form>
+      <p class="mono-label mt-4 text-ink/45">
+        Files are served from /api/media/&lt;key&gt;. Use that path in vehicle photos and tour heroes.
+      </p>
+    </section>
+
+    <section class="admin-card p-5">
+      <p class="section-label">Library</p>
+      {rows.length === 0 ? (
+        <p class="mt-4 text-sm text-ink/55">No uploads yet.</p>
+      ) : (
+        <div class="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {rows.map((item) => (
+            <div class="border border-ink/10">
+              <img src={`/api/media/${item.key}`} alt={item.filename} class="aspect-[4/3] w-full object-cover" loading="lazy" />
+              <div class="p-2">
+                <p class="mono-label truncate text-ink/55">{item.filename}</p>
+                <input
+                  readonly
+                  value={`/api/media/${item.key}`}
+                  class="field mt-2 !py-1 !text-sm"
+                  onclick="this.select()"
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  </div>
+</AdminLayout>

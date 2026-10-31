@@ -1,0 +1,104 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { getActiveTours, getFleetForTour, getVehicles } from "@/lib/catalog";
+import { getSettings } from "@/lib/settings";
+import { formatJpy } from "@/lib/dates";
+
+const settings = await getSettings();
+const [vehicles, tours] = await Promise.all([getVehicles(), getActiveTours()]);
+
+const rows = await Promise.all(
+  vehicles.map(async (v) => {
+    const offers: { id: string; title: string; price: number }[] = [];
+    for (const t of tours) {
+      const fleet = await getFleetForTour(t.id);
+      const hit = fleet.find((f) => f.id === v.id);
+      if (hit) offers.push({ id: t.id, title: t.title, price: hit.priceJpy });
+    }
+    return { vehicle: v, offers, min: offers.length ? Math.min(...offers.map((o) => o.price)) : null };
+  }),
+);
+---
+
+<Layout title={`Fleet | ${settings.brand_name}`} description="R32, R34, R35 and AE86 — self-drive rentals from Fujisawa.">
+  <main class="mx-auto max-w-6xl px-5 py-14 sm:py-20">
+    <p class="section-label">The fleet</p>
+    <h1 class="display mt-3 text-[clamp(2.6rem,8vw,5.5rem)] text-ink">
+      Four cars.<br />No filler<span class="text-signal">.</span>
+    </h1>
+    <p class="mt-5 max-w-xl text-sm leading-relaxed text-ink/70 sm:text-base">
+      Every car is road-registered in Japan, maintained in-house, and rented
+      self-drive from our Fujisawa base.
+    </p>
+
+    <div class="mt-12 space-y-6">
+      {rows.map(({ vehicle, offers, min }) => (
+        <article
+          id={vehicle.id}
+          class="fleet-vehicle grid gap-0 scroll-mt-24 border border-ink/12 bg-white md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]"
+        >
+          <div class="relative aspect-[4/3] overflow-hidden bg-[#e9e6dd] md:aspect-auto md:min-h-[320px]">
+            {vehicle.photo ? (
+              <img src={vehicle.photo} alt={vehicle.name} class="h-full w-full object-cover" loading="lazy" />
+            ) : (
+              <div class="flex h-full w-full items-center justify-center">
+                <span class="display text-[110px] leading-none text-ink/23">
+                  {vehicle.chassisCode || "JDM"}
+                </span>
+              </div>
+            )}
+            <span class="plate absolute left-4 top-4 bg-paper/85 text-ink">
+              <small>CHASSIS</small>
+              <span>{vehicle.chassisCode || "—"}</span>
+            </span>
+          </div>
+
+          <div class="flex flex-col justify-between p-6">
+            <div>
+              <div class="flex items-start justify-between gap-4">
+                <h2 class="display text-3xl leading-none text-ink">{vehicle.name}</h2>
+                {min != null && (
+                  <span class="price-tag shrink-0">
+                    From {formatJpy(min)}
+                  </span>
+                )}
+              </div>
+
+              <p class="mt-3 text-sm leading-relaxed text-ink/75">{vehicle.blurb}</p>
+
+              <dl class="mt-6 grid grid-cols-2 gap-px border border-ink/10 bg-ink/10 sm:grid-cols-3">
+                {[
+                  { k: "Layout", v: vehicle.specs ? (JSON.parse(vehicle.specs) as string[]).join(" · ") || "—" : "—" },
+                  { k: "Engine", v: vehicle.engineCode || "—" },
+                  { k: "Drive", v: vehicle.drivetrain || "—" },
+                  { k: "Gearbox", v: vehicle.transmission },
+                  { k: "Seats", v: String(vehicle.seats) },
+                  { k: "Luggage", v: vehicle.luggage || "—" },
+                ].map((spec) => (
+                  <div class="bg-white px-3 py-3">
+                    <dt class="mono-label text-ink/45">{spec.k}</dt>
+                    <dd class="mt-1 font-mono text-xs text-ink/85">{spec.v}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+
+            <div class="mt-6">
+              <div class="flex flex-wrap gap-2">
+                {offers.map((o) => (
+                  <a
+                    href={`/courses/${o.id}?vehicle=${vehicle.id}`}
+                    class="mono-label border border-ink/12 px-2 py-1.5 text-ink/65 transition-colors hover:border-signal hover:text-signal"
+                  >
+                    {o.title.split(" ").slice(0, 3).join(" ")} · {formatJpy(o.price)}
+                  </a>
+                ))}
+              </div>
+              <a href="/courses" class="hard-btn mt-4 w-full sm:w-auto">Check availability</a>
+            </div>
+          </div>
+        </article>
+      ))}
+    </div>
+  </main>
+</Layout>

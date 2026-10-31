@@ -1,0 +1,122 @@
+---
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import { getAllTours, getTour } from "@/lib/catalog";
+
+const user = Astro.locals.user;
+const editingId = Astro.url.searchParams.get("id");
+const editing = editingId ? await getTour(editingId) : null;
+const list = await getAllTours();
+const saved = Astro.url.searchParams.get("saved");
+---
+
+<AdminLayout title="Courses" active="tours" user={user}>
+  {saved && (
+    <p class="mb-4 border border-signal/40 bg-signal/10 px-3 py-2 text-sm text-ink">Saved.</p>
+  )}
+
+  <div class="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+    <section class="admin-card">
+      <div class="flex items-center justify-between border-b border-ink/10 px-5 py-4">
+        <p class="section-label">All courses</p>
+        <a href="/admin/tours?new=1" class="mono-label text-ink/65 hover:text-ink">+ New course</a>
+      </div>
+      <div class="divide-y divide-ink/10">
+        {list.map((tour) => (
+          <div class="flex items-center justify-between gap-4 px-5 py-4">
+            <div class="min-w-0">
+              <p class="truncate text-sm font-semibold text-ink">{tour.title}</p>
+              <p class="mono-label mt-1 text-ink/50">
+                /{tour.id} · {tour.durationHours}h · {tour.status}
+              </p>
+            </div>
+            <div class="flex shrink-0 gap-2">
+              <a href={`/admin/tours?id=${tour.id}`} class="mono-label border border-ink/20 px-2 py-1.5 text-ink/75 hover:text-ink">
+                Edit
+              </a>
+              <a href={`/courses/${tour.id}`} target="_blank" class="mono-label border border-ink/20 px-2 py-1.5 text-ink/75 hover:text-ink">
+                View
+              </a>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <section class="admin-card p-5">
+      <p class="section-label">{editing ? "Edit course" : "New course"}</p>
+      <form method="POST" action="/api/admin/tour" class="mt-4 space-y-3">
+        <input type="hidden" name="id" value={editing?.id ?? ""} />
+
+        <div>
+          <label class="lbl">Title</label>
+          <input name="title" required class="field" value={editing?.title ?? ""} />
+        </div>
+        <div>
+          <label class="lbl">Subtitle</label>
+          <input name="subtitle" class="field" value={editing?.subtitle ?? ""} />
+        </div>
+        <div>
+          <label class="lbl">Description</label>
+          <textarea name="body" rows="5" class="field">{editing?.body ?? ""}</textarea>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="lbl">Duration (h)</label>
+            <input name="durationHours" type="number" min="1" max="24" class="field" value={editing?.durationHours ?? 4} />
+          </div>
+          <div>
+            <label class="lbl">Sort</label>
+            <input name="sort" type="number" class="field" value={editing?.sort ?? 0} />
+          </div>
+        </div>
+        <div>
+          <label class="lbl">Meeting / pickup label</label>
+          <input name="meetingLabel" class="field" value={editing?.meetingLabel ?? "Fujisawa base"} />
+        </div>
+        <div>
+          <label class="lbl">Hero image URL</label>
+          <input name="heroImage" class="field" value={editing?.heroImage ?? ""} placeholder="/uploads/…" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="lbl">Who drives</label>
+            <select name="driverMode" class="field">
+              <option value="self" selected={(editing?.driverMode ?? "self") === "self"}>Guest (self drive)</option>
+              <option value="staff" selected={editing?.driverMode === "staff"}>Our driver included</option>
+            </select>
+          </div>
+          <label class="mt-5 flex items-center gap-2 text-xs text-ink/70">
+            <input type="checkbox" name="pickupDropoff" checked={Boolean(editing?.pickupDropoff)} />
+            Pickup + drop-off addresses
+          </label>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="lbl">Status</label>
+            <select name="status" class="field">
+              {["active", "draft"].map((s) => (
+                <option value={s} selected={editing?.status === s}>{s}</option>
+              ))}
+            </select>
+          </div>
+          <label class="mt-5 flex items-center gap-2 text-sm text-ink/75">
+            <input type="checkbox" name="featured" checked={Boolean(editing?.featured)} />
+            Featured
+          </label>
+        </div>
+
+        <button class="hard-btn w-full">Save course</button>
+      </form>
+
+      {editing && (
+        <form method="POST" action="/api/admin/tour" class="mt-3">
+          <input type="hidden" name="action" value="delete" />
+          <input type="hidden" name="id" value={editing.id} />
+          <button class="mono-label w-full border border-signal/40 py-2 text-signal/70 hover:text-signal">
+            Delete course
+          </button>
+        </form>
+      )}
+    </section>
+  </div>
+</AdminLayout>

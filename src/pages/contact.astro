@@ -1,185 +1,127 @@
 ---
 import Layout from "@/layouts/Layout.astro";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import MapView from "@/components/map/MapView.tsx";
+import { getSettings } from "@/lib/settings";
+import { db } from "@/lib/db";
+import { inquiries } from "@/lib/db/schema";
+import { newId } from "@/lib/ids";
+
+const settings = await getSettings();
+let sent = Astro.url.searchParams.get("sent") === "1";
+let error = "";
+
+if (Astro.request.method === "POST") {
+  const form = await Astro.request.formData();
+  const name = String(form.get("name") ?? "").trim();
+  const email = String(form.get("email") ?? "").trim();
+  const topic = String(form.get("topic") ?? "general");
+  const message = String(form.get("message") ?? "").trim();
+  const trap = String(form.get("company") ?? "");
+
+  if (trap) {
+    return Astro.redirect("/contact?sent=1");
+  }
+  if (!name || !email.includes("@") || message.length < 10) {
+    error = "Add your name, a valid email and a message of at least 10 characters.";
+  } else {
+    await db.insert(inquiries).values({
+      id: newId("inq"),
+      name,
+      email: email.toLowerCase(),
+      topic,
+      message,
+      status: "new",
+      createdAt: Date.now(),
+    });
+    return Astro.redirect("/contact?sent=1");
+  }
+}
+
+const points = [{ lat: settings.lat, lng: settings.lng, label: "Fujisawa base", kind: "site" as const }];
+const inputClass =
+  "w-full border border-ink/20 bg-paper px-3 py-2.5 text-sm text-ink placeholder:text-ink/45 focus:border-signal focus:outline-none";
+const labelClass = "mono-label mb-1.5 block text-ink/65";
 ---
 
-<Layout
-  title="Contact Us | Tokyoride"
-  description="Contact the Tokyoride team for tour bookings, garage visits, and custom inquiries."
->
-  <main class="max-w-4xl mx-auto px-6 py-12">
-    <!-- Header -->
-    <div class="mb-10 text-center sm:text-left">
-      <Badge variant="outline" className="text-zinc-700 border-zinc-300 bg-zinc-100 mb-3">
-        Inquiries & Bookings
-      </Badge>
-      <h1 class="text-3xl sm:text-4xl font-black tracking-tight text-zinc-950 uppercase">
-        Contact Tokyoride
-      </h1>
-      <p class="text-zinc-600 text-base sm:text-lg mt-3 leading-relaxed">
-        Send us a message for private runs, schedule questions, or garage visits.
-      </p>
-    </div>
+<Layout title={`Contact | ${settings.brand_name}`} description="Questions about dates, cars or convoys — talk to us.">
+  <main class="mx-auto max-w-6xl px-5 py-14 sm:py-20">
+    <p class="section-label">Contact</p>
+    <h1 class="display mt-3 text-[clamp(2.6rem,8vw,5rem)] text-ink">
+      Ask us anything<span class="text-signal">.</span>
+    </h1>
+    <p class="mt-5 max-w-lg text-sm leading-relaxed text-ink/70">
+      Dates, convoys, under-25 drivers, or a route you want built around a
+      specific car. We answer within 24 hours.
+    </p>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      <!-- Contact Info -->
-      <aside class="space-y-6">
-        <div class="bg-white border border-zinc-200 rounded-xl p-6 shadow-sm space-y-4">
-          <div>
-            <span class="text-xs uppercase font-mono tracking-wider text-zinc-400 block mb-1">
-              Direct Contact
-            </span>
-            <div class="space-y-1.5 text-xs">
+    <div class="mt-12 grid gap-10 lg:grid-cols-[1.1fr_0.9fr]">
+      <div class="border border-ink/12 bg-white p-6 sm:p-8">
+        {sent ? (
+          <div class="py-10 text-center">
+            <p class="section-label">Message sent</p>
+            <p class="mt-3 font-display text-3xl text-ink">Talk soon.</p>
+            <p class="mt-3 text-sm text-ink/65">We reply within one business day.</p>
+            <a href="/courses" class="hard-btn mt-6">Browse courses</a>
+          </div>
+        ) : (
+          <form method="POST" class="space-y-4">
+            {error && (
+              <p class="border border-signal/40 bg-signal/10 px-3 py-2 text-xs text-ink">{error}</p>
+            )}
+            <div class="grid gap-4 sm:grid-cols-2">
               <div>
-                <span class="text-zinc-500 block">Phone:</span>
-                <a
-                  href="tel:+81462589614"
-                  class="font-mono font-medium text-zinc-900 hover:text-red-600 transition-colors"
-                >
-                  +81 46-258-9614
-                </a>
+                <label for="name" class={labelClass}>Name</label>
+                <input id="name" name="name" required class={inputClass} placeholder="Kenji Sato" />
               </div>
-              <div class="pt-1">
-                <span class="text-zinc-500 block">Email:</span>
-                <a
-                  href="mailto:atsugihobbyshopahs@gmail.com"
-                  class="font-mono font-medium text-zinc-900 hover:text-red-600 transition-colors break-all"
-                >
-                  atsugihobbyshopahs@gmail.com
-                </a>
+              <div>
+                <label for="email" class={labelClass}>Email</label>
+                <input id="email" name="email" type="email" required class={inputClass} placeholder="you@example.com" />
               </div>
             </div>
-          </div>
-
-          <hr class="border-zinc-100" />
-
-          <div>
-            <span class="text-xs uppercase font-mono tracking-wider text-zinc-400 block mb-2">
-              Location
-            </span>
-            <div class="rounded-lg overflow-hidden border border-zinc-200 aspect-video w-full mb-3 shadow-inner bg-zinc-100">
-              <iframe
-                title="AHS Headquarters Google Map"
-                src="https://maps.google.com/maps?q=35.3836835,139.4131036&hl=en&z=14&output=embed"
-                width="100%"
-                height="100%"
-                style="border:0;"
-                allowfullscreen=""
-                loading="lazy"
-                referrerpolicy="no-referrer-when-downgrade"
-              ></iframe>
+            <div>
+              <label for="topic" class={labelClass}>What is this about?</label>
+              <select id="topic" name="topic" class={inputClass}>
+                <option value="booking">A booking</option>
+                <option value="convoy">Convoy / group</option>
+                <option value="car">A specific car</option>
+                <option value="route">A custom route</option>
+                <option value="general">Something else</option>
+              </select>
             </div>
-            <a
-              href="https://www.google.com/maps/place/AHS+Headquarters/@35.5146432,139.3434495,11z/data=!4m10!1m2!2m1!1sauto+hobby+shop+fujisawa!3m6!1s0x601901a7f388136f:0x45d925200ef6c1f2!8m2!3d35.3836835!4d139.4131036!15sChhhdXRvIGhvYmJ5IHNob3AgZnVqaXNhd2FaGiIYYXV0byBob2JieSBzaG9wIGZ1amlzYXdhkgEJdGlyZV9zaG9wmgFEQ2k5RFFVbFJRVU52WkVOb2RIbGpSamx2VDJ0NFJFeFZUbFJVTVVsNFRqQjBXRll6YUhGVmJsRjRaVzA1V2xwV1JSQULgAQD6AQQIABBB!16s%2Fg%2F11vlqfrj4f?entry=ttu&g_ep=EgoyMDI2MDkzMC4wIKXMDSoASAFQAw%3D%3D"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="inline-flex items-center gap-1.5 text-xs font-semibold text-red-600 hover:text-red-700 transition-colors"
-            >
-              <span>Open in Google Maps</span>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-3.5 h-3.5">
-                <path fill-rule="evenodd" d="M4.25 5.5a.75.75 0 0 0-.75.75v8.5c0 .414.336.75.75.75h8.5a.75.75 0 0 0 .75-.75v-4a.75.75 0 0 1 1.5 0v4A2.25 2.25 0 0 1 12.75 17h-8.5A2.25 2.25 0 0 1 2 14.75v-8.5A2.25 2.25 0 0 1 4.25 4h4a.75.75 0 0 1 0 1.5h-4Zm6.5 0a.75.75 0 0 1 .75-.75h4.75a.75.75 0 0 1 .75.75v4.75a.75.75 0 0 1-1.5 0V6.56l-5.47 5.47a.75.75 0 1 1-1.06-1.06l5.47-5.47H11.5a.75.75 0 0 1-.75-.75Z" clip-rule="evenodd" />
-              </svg>
-            </a>
-          </div>
+            <div>
+              <label for="message" class={labelClass}>Message</label>
+              <textarea id="message" name="message" rows="6" required class={inputClass} placeholder="Dates, group size, cars you are interested in…"></textarea>
+            </div>
+            <input type="text" name="company" tabindex="-1" autocomplete="off" class="hidden" aria-hidden="true" />
+            <button type="submit" class="hard-btn w-full">Send message</button>
+          </form>
+        )}
+      </div>
 
-          <hr class="border-zinc-100" />
+      <div class="space-y-5">
+        <MapView client:visible points={points} height={260} zoom={12} />
 
-          <div>
-            <span class="text-xs uppercase font-mono tracking-wider text-zinc-400 block mb-1">
-              Meeting Time
-            </span>
-            <p class="text-zinc-700 text-xs leading-relaxed">
-              Evening highway cruises generally start at 19:00 JST. Exact times confirm after booking.
-            </p>
-          </div>
-
-          <hr class="border-zinc-100" />
-
-          <div>
-            <span class="text-xs uppercase font-mono tracking-wider text-zinc-400 block mb-1">
-              Response Time
-            </span>
-            <p class="text-zinc-700 text-xs">
-              We respond to inquiries within 24 hours.
-            </p>
-          </div>
+        <div class="border border-ink/12 bg-white p-6">
+          <p class="section-label">Direct</p>
+          <a href={`mailto:${settings.email}`} class="mt-3 block text-sm text-ink hover:text-signal">
+            {settings.email}
+          </a>
+          <a href={`tel:${settings.phone.replace(/\s/g, "")}`} class="mt-1 block font-mono text-xs text-ink/70 hover:text-signal">
+            {settings.phone}
+          </a>
+          <hr class="my-5 border-ink/10" />
+          <p class="mono-label text-ink/50">Base</p>
+          <p class="mt-2 text-sm text-ink/85">{settings.address}</p>
+          <p class="mt-1 font-mono text-xs text-ink/55">{settings.hours}</p>
         </div>
-      </aside>
 
-      <!-- Contact Form -->
-      <div class="lg:col-span-2 bg-white border border-zinc-200 rounded-xl p-8 shadow-sm">
-        <form class="space-y-6" onsubmit="event.preventDefault(); alert('Message sent! We will contact you soon.');">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div class="space-y-2">
-              <label for="name" class="block text-xs font-bold uppercase tracking-wider text-zinc-700">
-                Full Name
-              </label>
-              <input
-                id="name"
-                name="name"
-                type="text"
-                required
-                placeholder="Kenji Sato"
-                class="w-full rounded-lg border border-zinc-300 px-3.5 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
-              />
-            </div>
-
-            <div class="space-y-2">
-              <label for="email" class="block text-xs font-bold uppercase tracking-wider text-zinc-700">
-                Email Address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                required
-                placeholder="you@example.com"
-                class="w-full rounded-lg border border-zinc-300 px-3.5 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
-              />
-            </div>
-          </div>
-
-          <div class="space-y-2">
-            <label for="topic" class="block text-xs font-bold uppercase tracking-wider text-zinc-700">
-              Interest / Tour Type
-            </label>
-            <select
-              id="topic"
-              name="topic"
-              class="w-full rounded-lg border border-zinc-300 px-3.5 py-2.5 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all bg-white"
-            >
-              <option value="daikoku">Daikoku PA & Wangan Midnight Run</option>
-              <option value="fujisawa-shonan">Fujisawa Coastal & Shonan Route Cruise</option>
-              <option value="kanagawa-touge">Kanagawa Mountain Touge & Hakone Run</option>
-              <option value="ahs-garage">Fujisawa AHS Garage Build & Tuning Experience</option>
-              <option value="fuji-speedway">Fuji Speedway & Mount Fuji Track Tour</option>
-              <option value="custom">Custom Private Group Tour</option>
-              <option value="general">General Question</option>
-            </select>
-          </div>
-
-          <div class="space-y-2">
-            <label for="message" class="block text-xs font-bold uppercase tracking-wider text-zinc-700">
-              Message
-            </label>
-            <textarea
-              id="message"
-              name="message"
-              rows="5"
-              required
-              placeholder="Tell us about your preferred dates, group size, or questions..."
-              class="w-full rounded-lg border border-zinc-300 px-3.5 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
-            ></textarea>
-          </div>
-
-          <Button
-            type="submit"
-            className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-5 cursor-pointer shadow-sm text-sm"
-          >
-            Send Inquiry
-          </Button>
-        </form>
+        <div class="border border-ink/12 bg-white p-6">
+          <p class="section-label">Response time</p>
+          <p class="mt-2 text-sm leading-relaxed text-ink/70">
+            Within 24 hours, usually much faster. For same-day pickup requests,
+            call the number above.
+          </p>
+        </div>
       </div>
     </div>
   </main>

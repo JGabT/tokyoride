@@ -1,0 +1,165 @@
+---
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import { desc, eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { bookings, customers, payments } from "@/lib/db/schema";
+import { paymentMode, publicBaseUrl } from "@/lib/payments";
+import { env } from "@/lib/runtime";
+import { formatJpy, jstDateKey, jstTime } from "@/lib/dates";
+
+const user = Astro.locals.user;
+const mode = paymentMode();
+const base = publicBaseUrl();
+
+const rows = await db
+  .select({ payment: payments, booking: bookings, customer: customers })
+  .from(payments)
+  .innerJoin(bookings, eq(bookings.id, payments.bookingId))
+  .innerJoin(customers, eq(customers.id, bookings.customerId))
+  .orderBy(desc(payments.createdAt))
+  .limit(25);
+
+const configured = Boolean(
+  env("AIRPAY_BASE_URL") &&
+    env("AIRPAY_MERCHANT_ID") &&
+    env("AIRPAY_SECRET"),
+);
+
+const steps = [
+  {
+    n: "01",
+    title: "Guest books",
+    body: "Date, cars and drivers are submitted. Cars are held for 30 minutes in a transaction.",
+  },
+  {
+    n: "02",
+    title: "Checkout opens",
+    body:
+      mode === "live"
+        ? "Server signs the request and redirects to AirPay's hosted page."
+        : "Guest lands on the sandbox hosted page at /pay/mock/:id.",
+  },
+  {
+    n: "03",
+    title: "AirPay calls back",
+    body: "Signed webhook hits /api/webhooks/airpay. Signature verified, event deduplicated, amount checked.",
+  },
+  {
+    n: "04",
+    title: "Booking confirms",
+    body: "Status → confirmed, receipt number issued, guest + admin emails queued.",
+  },
+];
+
+const testMatrix = [
+  "Successful payment → confirmed, receipt, both emails",
+  "Cancel → cars released, booking cancelled",
+  "Expire → cars released, booking expired",
+  "Duplicate webhook → no-op",
+  "Amount mismatch → refused",
+  "Same car booked twice → clean conflict",
+  "Convoy of two cars → one checkout, two holds",
+  "Refund → status refunded, cars released",
+];
+---
+
+<AdminLayout title="Payments" active="payments" user={user}>
+  <div class="grid gap-4 sm:grid-cols-3">
+    <div class="admin-card p-5">
+      <p class="mono-label text-ink/50">Mode</p>
+      <div class="mt-2 flex items-center gap-2">
+        <span class:list={["h-2 w-2", mode === "live" ? "bg-signal" : "bg-utility"]}></span>
+        <p class="font-display text-2xl text-ink">
+          {mode === "live" ? "Live" : "Sandbox"}
+        </p>
+      </div>
+    </div>
+    <div class="admin-card p-5">
+      <p class="mono-label text-ink/50">Credentials</p>
+      <p class:list={["mt-2 font-display text-2xl ", configured ? "text-signal" : "text-ink/55"]}>
+        {configured ? "Present" : "Missing"}
+      </p>
+    </div>
+    <div class="admin-card p-5">
+      <p class="mono-label text-ink/50">Return origin</p>
+      <p class="mt-2 truncate font-mono text-sm text-ink">{base}</p>
+    </div>
+  </div>
+
+  {mode !== "live" && (
+    <p class="mt-4 border border-utility/40 bg-utility/10 px-3 py-2 text-sm leading-relaxed text-ink/85">
+      Sandbox is active. Every booking settles through the mock page, but the
+      webhook pipeline, amount check, receipt and emails are the real ones.
+      Set <span class="font-mono">AIRPAY_MODE=live</span> plus credentials to switch.
+    </p>
+  )}
+
+  <section class="mt-8">
+    <p class="section-label">The flow</p>
+    <div class="mt-4 grid gap-3 lg:grid-cols-4">
+      {steps.map((step) => (
+        <div class="admin-card p-4">
+          <p class="font-mono text-sm text-signal">{step.n}</p>
+          <p class="mt-2 font-display text-lg leading-none text-ink">{step.title}</p>
+          <p class="mt-2 text-sm leading-relaxed text-ink/65">{step.body}</p>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <div class="mt-8 grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
+    <section class="admin-card">
+      <div class="border-b border-ink/10 px-5 py-4">
+        <p class="section-label">Recent attempts</p>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[560px] border-collapse text-sm">
+          <thead>
+            <tr class="border-b border-ink/10 text-left">
+              {["Ref", "Provider", "Amount", "Status", "Created"].map((h) => (
+                <th class="p-3 mono-label text-ink/45">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 && (
+              <tr><td colspan="5" class="p-5 text-sm text-ink/55">No payment attempts yet.</td></tr>
+            )}
+            {rows.map(({ payment, booking }) => (
+              <tr class="border-b border-ink/8">
+                <td class="p-3 font-mono text-sm">
+                  <a href={`/admin/bookings/${booking.id}`} class="text-ink hover:text-signal">{booking.ref}</a>
+                </td>
+                <td class="p-3 font-mono text-sm text-ink/65">{payment.provider}</td>
+                <td class="p-3 font-mono text-sm text-ink">{formatJpy(payment.amountJpy)}</td>
+                <td class="p-3">
+                  <span class:list={["mono-label", payment.status === "paid" ? "text-signal" : payment.status === "created" ? "text-utility" : "text-ink/50"]}>
+                    {payment.status}
+                  </span>
+                </td>
+                <td class="p-3 font-mono text-sm text-ink/55">
+                  {jstDateKey(payment.createdAt)} {jstTime(payment.createdAt)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="admin-card p-5">
+      <p class="section-label">Go-live checklist</p>
+      <ul class="mt-3 space-y-2">
+        {testMatrix.map((item) => (
+          <li class="flex gap-2 text-sm leading-relaxed text-ink/70">
+            <span class="mt-1 h-2 w-2 shrink-0 border border-ink/40"></span>
+            {item}
+          </li>
+        ))}
+      </ul>
+      <a href="/admin/bookings" class="mono-label mt-4 inline-block border-b border-ink/25 pb-1 text-ink/65 hover:text-signal">
+        Open bookings →
+      </a>
+    </section>
+  </div>
+</AdminLayout>

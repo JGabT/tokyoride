@@ -1,0 +1,116 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import Logo from "@/components/site/Logo.astro";
+import { getReceiptByToken } from "@/lib/receipts";
+import { formatJpy, jstLong, jstTime } from "@/lib/dates";
+import { getSettings } from "@/lib/settings";
+
+const { token } = Astro.params;
+const row = token ? await getReceiptByToken(token) : null;
+if (!row) return Astro.redirect("/");
+
+const settings = await getSettings();
+const data = JSON.parse(row.snapshot) as {
+  number: string;
+  customer: { name: string; email: string };
+  tour: { title: string };
+  departure: { startsAt: number; endsAt: number };
+  pickup?: string | null;
+  dropoff?: string | null;
+  cars: { name: string; chassisCode: string; driver: string; priceJpy: number }[];
+  subtotalJpy: number;
+  taxJpy: number;
+  totalJpy: number;
+};
+---
+
+<Layout title={`Receipt ${data.number} | ${settings.brand_name}`} description="Booking receipt" bare>
+  <main class="mx-auto w-full max-w-2xl px-5 py-10">
+    <div class="mb-6 flex items-center justify-between print:hidden">
+      <a href="/" class="mono-label text-ink/55 hover:text-signal">← Tokyoride</a>
+      <button onclick="window.print()" class="hard-btn !py-2 !text-xs">Print / PDF</button>
+    </div>
+
+    <article class="border border-ink/12 bg-white p-8 text-ink">
+      <header class="flex items-start justify-between border-b border-ink/15 pb-6">
+        <div>
+          <Logo size="sm" />
+          <p class="mt-2 font-mono text-xs uppercase tracking-widest text-ink/50">
+            Fujisawa · Kanagawa · Japan
+          </p>
+        </div>
+        <div class="text-right">
+          <p class="font-mono text-xs uppercase tracking-widest text-ink/40">Receipt</p>
+          <p class="font-mono text-sm font-bold">{data.number}</p>
+        </div>
+      </header>
+
+      <div class="grid gap-4 border-b border-ink/15 py-6 sm:grid-cols-2">
+        <div>
+          <p class="font-mono text-xs uppercase tracking-widest text-ink/40">Billed to</p>
+          <p class="mt-1 text-sm font-semibold">{data.customer.name}</p>
+          <p class="text-xs text-ink/60">{data.customer.email}</p>
+        </div>
+        <div class="sm:text-right">
+          <p class="font-mono text-xs uppercase tracking-widest text-ink/40">Issued</p>
+          <p class="mt-1 text-sm">{new Date(row.issuedAt).toISOString().slice(0, 10)}</p>
+        </div>
+      </div>
+
+      <div class="border-b border-ink/15 py-6">
+        <p class="font-mono text-xs uppercase tracking-widest text-ink/40">Booking</p>
+        <p class="mt-1 font-display text-xl ">{data.tour.title}</p>
+        <p class="mt-1 text-xs text-ink/60">
+          {jstLong(data.departure.startsAt)} · {jstTime(data.departure.startsAt)}–{jstTime(data.departure.endsAt)} JST
+        </p>
+        {data.pickup && (
+          <p class="mt-2 text-xs text-ink/60">
+            Pickup: {data.pickup} → Drop-off: {data.dropoff ?? "—"}
+          </p>
+        )}
+      </div>
+
+      <table class="w-full border-collapse py-2 text-sm">
+        <thead>
+          <tr class="border-b border-ink/15 text-left font-mono text-xs uppercase tracking-widest text-ink/40">
+            <th class="py-3">Vehicle</th>
+            <th class="py-3">Driver</th>
+            <th class="py-3 text-right">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.cars.map((car) => (
+            <tr class="border-b border-ink/10">
+              <td class="py-3">
+                {car.name}
+                <span class="ml-2 font-mono text-xs text-ink/40">{car.chassisCode}</span>
+              </td>
+              <td class="py-3 text-ink/70">{car.driver}</td>
+              <td class="py-3 text-right font-mono">{formatJpy(car.priceJpy)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <div class="ml-auto mt-6 w-full max-w-xs space-y-2 text-sm">
+        <div class="flex justify-between">
+          <span class="text-ink/55">Subtotal</span>
+          <span class="font-mono">{formatJpy(data.subtotalJpy)}</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-ink/55">Consumption tax (10%)</span>
+          <span class="font-mono">{formatJpy(data.taxJpy)}</span>
+        </div>
+        <div class="flex justify-between border-t border-ink/20 pt-2 text-base font-bold">
+          <span>Total</span>
+          <span class="font-mono">{formatJpy(data.totalJpy)}</span>
+        </div>
+      </div>
+
+      <footer class="mt-8 border-t border-ink/15 pt-5 font-mono text-xs leading-relaxed uppercase tracking-wider text-ink/45">
+        <p>{settings.legal_name} · {settings.address}</p>
+        <p>Payment received via AirPay · No refunds within 24 hours of pickup</p>
+      </footer>
+    </article>
+  </main>
+</Layout>

@@ -1,0 +1,28 @@
+---
+interface Props {
+  class?: string;
+  size?: "sm" | "md" | "lg";
+}
+
+const { class: className = "", size = "md" } = Astro.props;
+
+const mark = size === "sm" ? 28 : size === "lg" ? 44 : 34;
+const word = size === "sm" ? "text-lg" : size === "lg" ? "text-3xl" : "text-xl sm:text-2xl";
+---
+
+<span class:list={["inline-flex items-center gap-2.5", className]}>
+  <svg
+    width={mark}
+    height={mark}
+    viewBox="0 0 64 64"
+    aria-hidden="true"
+    class="shrink-0"
+  >
+    <rect width="64" height="64" fill="#0b0b0c"></rect>
+    <path d="M10 14h44v9H37v29H27V23H10z" fill="#f3f1ea"></path>
+    <rect x="45" y="44" width="9" height="9" fill="#e01b00"></rect>
+  </svg>
+  <span class:list={["display uppercase leading-none tracking-[-0.01em] text-ink", word]}>
+    Tokyoride
+  </span>
+</span>

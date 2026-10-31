@@ -1,0 +1,263 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import BookingWidget from "@/components/booking/BookingWidget.tsx";
+import MapView from "@/components/map/MapView.tsx";
+import { getAvailability } from "@/lib/availability";
+import { getFleetForTour, getTour, getTourMap } from "@/lib/catalog";
+import { getSettings } from "@/lib/settings";
+import { formatJpy, jstTime } from "@/lib/dates";
+
+const { slug } = Astro.params;
+const tour = slug ? await getTour(slug) : null;
+
+if (!tour || tour.status !== "active") {
+  return Astro.redirect("/courses");
+}
+
+const settings = await getSettings();
+const [fleet, map, availability] = await Promise.all([
+  getFleetForTour(tour.id),
+  getTourMap(tour.id),
+  getAvailability(tour.id, Date.now(), Date.now() + 120 * 86_400_000),
+]);
+
+const departures = availability
+  .filter((d) => d.vehiclesLeft.length > 0)
+  .filter((d) => d.startsAt > Date.now() + 6 * 3600_000)
+  .map((d) => ({
+    id: d.id,
+    startsAt: d.startsAt,
+    vehiclesLeft: d.vehiclesLeft,
+  }));
+
+const points = map.length
+  ? map.map((p) => ({
+      lat: p.lat,
+      lng: p.lng,
+      label: p.label,
+      kind: p.kind as any,
+    }))
+  : [
+      {
+        lat: settings.lat,
+        lng: settings.lng,
+        label: "Fujisawa base",
+        kind: "start" as const,
+      },
+    ];
+
+const paragraphs = tour.body.split(/\n{2,}/).filter(Boolean);
+const from = fleet.length ? Math.min(...fleet.map((v) => v.priceJpy)) : 0;
+const next = departures[0];
+---
+
+<Layout
+  title={`${tour.title} | ${settings.brand_name}`}
+  description={tour.subtitle}
+>
+  <main>
+    <!-- HEADER -->
+    <section class="relative overflow-hidden border-b border-ink/10">
+      {tour.heroImage && (
+        <img
+          src={tour.heroImage}
+          alt=""
+          class="absolute inset-0 h-full w-full object-cover opacity-25"
+        />
+      )}
+      <div class="relative mx-auto max-w-6xl px-5 pb-10 pt-10 sm:pt-14">
+        <div class="flex items-start justify-between gap-10">
+          <div>
+            <a href="/courses" class="mono-label text-ink/55 hover:text-signal">
+              ← All courses
+            </a>
+
+            <div class="mt-6 flex flex-wrap items-center gap-3">
+              <span class="plate text-ink">
+                <small>DURATION</small>
+                <span>{tour.durationHours} HRS.</span>
+              </span>
+              <span class="price-tag">From {formatJpy(from)}</span>
+              <span class="mono-label border border-ink/20 px-2 py-1.5 text-ink/70">
+                {tour.driverMode === "self" ? "You drive" : "Driver included"}
+              </span>
+              {tour.pickupDropoff === 1 && (
+                <span class="mono-label border border-ink/20 px-2 py-1.5 text-ink/70">
+                  Point to point
+                </span>
+              )}
+              {next && (
+                <span class="mono-label border border-signal/40 bg-signal/10 px-2 py-1.5 text-signal">
+                  Next {jstTime(next.startsAt)} JST
+                </span>
+              )}
+            </div>
+
+            <h1 class="display mt-6 max-w-3xl text-[clamp(2.4rem,7vw,5rem)] text-ink">
+              {tour.title}
+            </h1>
+            <p class="mt-4 max-w-2xl text-sm leading-relaxed text-ink/75 sm:text-base">
+              {tour.subtitle}
+            </p>
+          </div>
+
+          <div class="hidden shrink-0 flex-col items-end gap-3 pt-8 text-right lg:flex">
+            <p class="mono-label text-ink/40">
+              Route {String(tour.sort).padStart(2, "0")}
+            </p>
+            <p class="font-display text-2xl leading-none text-ink">
+              {tour.durationHours} hours
+            </p>
+            {points.length > 1 && (
+              <>
+                <p class="mono-label text-ink/40">{points[0].label}</p>
+                <span class="h-8 w-px bg-ink/20"></span>
+                <p class="mono-label text-ink/40">
+                  {points[points.length - 1].label}
+                </p>
+              </>
+            )}
+            <p class="mono-label mt-2 border-t border-ink/15 pt-3 text-ink/55">
+              {tour.meetingLabel}
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="mx-auto grid max-w-6xl gap-10 px-5 py-12 lg:grid-cols-[1fr_400px]">
+      <!-- LEFT -->
+      <div class="space-y-12">
+        <section>
+          <p class="section-label">The route</p>
+          <div class="mt-4 space-y-4 text-sm leading-relaxed text-ink/85 sm:text-base">
+            {paragraphs.map((p) => (
+              <p>{p}</p>
+            ))}
+          </div>
+        </section>
+
+        {points.length > 0 && (
+          <section>
+            <div class="mb-4 flex items-end justify-between">
+              <p class="section-label">
+                {tour.pickupDropoff === 1 ? "Service area" : "Start / finish"}
+              </p>
+              <a
+                href={`https://www.google.com/maps/dir/?api=1&origin=${points[0].lat},${points[0].lng}&destination=${points[points.length - 1].lat},${points[points.length - 1].lng}`}
+                target="_blank"
+                rel="noopener"
+                class="mono-label text-ink/60 hover:text-signal"
+              >
+                Directions ↗
+              </a>
+            </div>
+            <MapView client:load points={points} height={340} />
+            <p class="mono-label mt-3 text-ink/50">
+              {tour.pickupDropoff === 1
+                ? "Pickup and drop-off"
+                : "Meeting point"}{" "}
+              · {tour.meetingLabel}
+              <br />
+              {settings.address}
+            </p>
+          </section>
+        )}
+
+        <section>
+          <p class="section-label">Cars on this course</p>
+          <div class="mt-4 divide-y divide-ink/10 border-y border-ink/10">
+            {fleet.map((car) => (
+              <div class="flex items-center justify-between gap-4 py-4">
+                <div class="flex items-center gap-4">
+                  <div>
+                    <p class="text-sm font-semibold text-ink">{car.name}</p>
+                    <p class="mono-label mt-1 text-ink/55">
+                      {car.transmission} · {car.seats} seats
+                    </p>
+                  </div>
+                </div>
+                <p class="font-mono text-sm text-ink">
+                  {formatJpy(car.priceJpy)}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section class="grid gap-4 sm:grid-cols-2">
+          <div class="border border-ink/12 bg-white p-5">
+            <p class="section-label">Included</p>
+            <ul class="mt-3 space-y-2 text-sm text-ink/75">
+              <li>· The car, fully fuelled</li>
+              {tour.driverMode === "self" ? (
+                <li>· Route briefing and map</li>
+              ) : (
+                <li>· A driver for the whole booking</li>
+              )}
+              {tour.pickupDropoff === 1 && (
+                <li>· Pickup and drop-off included</li>
+              )}
+              <li>· Basic insurance and roadside support</li>
+              <li>· ETC card for toll roads</li>
+            </ul>
+          </div>
+          <div class="border border-ink/12 bg-white p-5">
+            <p class="section-label">Bring</p>
+            <ul class="mt-3 space-y-2 text-sm text-ink/75">
+              <li>· Passport</li>
+              {tour.driverMode === "self" ? (
+                <>
+                  <li>· Home driving license</li>
+                  <li>· International Driving Permit</li>
+                  <li>· Closed shoes, no loose items</li>
+                </>
+              ) : (
+                <>
+                  <li>· Comfortable clothes</li>
+                  <li>· Camera</li>
+                </>
+              )}
+            </ul>
+          </div>
+        </section>
+
+        <section>
+          <p class="section-label">Cancellation</p>
+          <p class="mt-3 text-sm leading-relaxed text-ink/70">
+            {settings.cancellation_policy}
+          </p>
+          <a
+            href="/legal/terms"
+            class="mono-label mt-3 inline-block border-b border-ink/25 pb-1 text-ink/65 hover:text-signal"
+          >
+            Full rental terms →
+          </a>
+        </section>
+      </div>
+
+      <!-- RIGHT -->
+      <aside id="reserve" class="scroll-mt-24 lg:sticky lg:top-24 lg:self-start">
+        <BookingWidget
+          client:load
+          tourId={tour.id}
+          tourTitle={tour.title}
+          meetingLabel={tour.meetingLabel}
+          driverMode={tour.driverMode === "staff" ? "staff" : "self"}
+          pickupDropoff={Boolean(tour.pickupDropoff)}
+          fleet={fleet.map((v) => ({
+            id: v.id,
+            name: v.name,
+            chassisCode: v.chassisCode,
+            seats: v.seats,
+            priceJpy: v.priceJpy,
+            transmission: v.transmission,
+            photo: v.photo,
+          }))}
+          departures={departures}
+          policy={settings.cancellation_policy}
+        />
+      </aside>
+    </div>
+  </main>
+</Layout>

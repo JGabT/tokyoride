@@ -1,0 +1,131 @@
+---
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import { getVehicles } from "@/lib/catalog";
+
+const user = Astro.locals.user;
+const editId = Astro.url.searchParams.get("id");
+const all = await getVehicles(false);
+const editing = editId ? all.find((v) => v.id === editId) : null;
+const saved = Astro.url.searchParams.get("saved");
+const specs = editing ? (JSON.parse(editing.specs) as string[]).join(", ") : "";
+---
+
+<AdminLayout title="Fleet" active="fleet" user={user}>
+  {saved && (
+    <p class="mb-4 border border-signal/40 bg-signal/10 px-3 py-2 text-sm text-ink">Saved.</p>
+  )}
+
+  <div class="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+    <section class="admin-card">
+      <div class="flex items-center justify-between border-b border-ink/10 px-5 py-4">
+        <p class="section-label">Vehicles</p>
+        <a href="/admin/fleet?new=1" class="mono-label text-ink/65 hover:text-ink">+ New car</a>
+      </div>
+      <div class="divide-y divide-ink/10">
+        {all.map((vehicle) => (
+          <div class="flex items-center justify-between gap-4 px-5 py-4">
+            <div class="flex items-center gap-3">
+              <span class="plate text-ink/85">
+                <small>CODE</small>
+                <span>{vehicle.chassisCode || "—"}</span>
+              </span>
+              <div>
+                <p class="text-sm font-semibold text-ink">{vehicle.name}</p>
+                <p class="mono-label mt-1 text-ink/50">
+                  {vehicle.kind} · {vehicle.seats} seats · {vehicle.active ? "live" : "archived"}
+                </p>
+              </div>
+            </div>
+            <a href={`/admin/fleet?id=${vehicle.id}`} class="mono-label border border-ink/20 px-2 py-1.5 text-ink/75 hover:text-ink">
+              Edit
+            </a>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <section class="admin-card p-5">
+      <p class="section-label">{editing ? "Edit vehicle" : "New vehicle"}</p>
+      <form method="POST" action="/api/admin/vehicle" class="mt-4 space-y-3">
+        <input type="hidden" name="id" value={editing?.id ?? ""} />
+
+        <div>
+          <label class="lbl">Name</label>
+          <input name="name" required class="field" value={editing?.name ?? ""} placeholder="Nissan Skyline GT-R R34" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="lbl">Chassis code</label>
+            <input name="chassisCode" class="field" value={editing?.chassisCode ?? ""} placeholder="BNR34" />
+          </div>
+          <div>
+            <label class="lbl">Kind</label>
+            <select name="kind" class="field">
+              {["car", "van"].map((k) => (
+                <option value={k} selected={editing?.kind === k}>{k}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="lbl">Seats</label>
+            <input name="seats" type="number" min="1" max="9" class="field" value={editing?.seats ?? 2} />
+          </div>
+          <div>
+            <label class="lbl">Sort</label>
+            <input name="sort" type="number" class="field" value={editing?.sort ?? 0} />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="lbl">Transmission</label>
+            <input name="transmission" class="field" value={editing?.transmission ?? "Manual"} />
+          </div>
+          <div>
+            <label class="lbl">Drivetrain</label>
+            <input name="drivetrain" class="field" value={editing?.drivetrain ?? "AWD"} />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="lbl">Engine code</label>
+            <input name="engineCode" class="field" value={editing?.engineCode ?? ""} placeholder="RB26DETT" />
+          </div>
+          <div>
+            <label class="lbl">Luggage</label>
+            <input name="luggage" class="field" value={editing?.luggage ?? ""} placeholder="1 small bag" />
+          </div>
+        </div>
+        <div>
+          <label class="lbl">Specs (comma separated)</label>
+          <input name="specs" class="field" value={specs} placeholder="2.6L I6 twin turbo, 5-speed manual" />
+        </div>
+        <div>
+          <label class="lbl">Photo URL</label>
+          <input name="photo" class="field" value={editing?.photo ?? ""} placeholder="/api/media/…" />
+        </div>
+        <div>
+          <label class="lbl">Blurb</label>
+          <textarea name="blurb" rows="3" class="field">{editing?.blurb ?? ""}</textarea>
+        </div>
+        <label class="flex items-center gap-2 text-sm text-ink/75">
+          <input type="checkbox" name="active" checked={editing ? Boolean(editing.active) : true} />
+          Live on site
+        </label>
+
+        <button class="hard-btn w-full">Save vehicle</button>
+      </form>
+
+      {editing && (
+        <form method="POST" action="/api/admin/vehicle" class="mt-3">
+          <input type="hidden" name="action" value="delete" />
+          <input type="hidden" name="id" value={editing.id} />
+          <button class="mono-label w-full border border-signal/40 py-2 text-signal/70 hover:text-signal">
+            Archive vehicle
+          </button>
+        </form>
+      )}
+    </section>
+  </div>
+</AdminLayout>

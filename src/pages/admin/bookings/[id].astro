@@ -1,0 +1,180 @@
+---
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import { desc, eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { notifications, payments, receipts } from "@/lib/db/schema";
+import { getBookingDetail } from "@/lib/receipts";
+import { formatJpy, jstLong, jstTime } from "@/lib/dates";
+
+const user = Astro.locals.user;
+const { id } = Astro.params;
+const detail = id ? await getBookingDetail(id) : null;
+if (!detail) return Astro.redirect("/admin/bookings");
+
+const paymentRows = await db.select().from(payments).where(eq(payments.bookingId, detail.booking.id));
+const receiptRows = await db.select().from(receipts).where(eq(receipts.bookingId, detail.booking.id));
+const notes = await db
+  .select()
+  .from(notifications)
+  .where(eq(notifications.bookingId, detail.booking.id))
+  .orderBy(desc(notifications.createdAt));
+
+const receipt = receiptRows[0];
+---
+
+<AdminLayout title={`Booking ${detail.booking.ref}`} active="bookings" user={user}>
+  <a href="/admin/bookings" class="mono-label text-ink/55 hover:text-signal">← All bookings</a>
+
+  <div class="mt-5 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+    <div class="space-y-6">
+      <section class="admin-card p-5">
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p class="section-label">{detail.booking.status}</p>
+            <p class="mt-2 font-display text-2xl text-ink">{detail.tour.title}</p>
+            <p class="mono-label mt-2 text-ink/50">
+              {jstLong(detail.departure.startsAt)} · {jstTime(detail.departure.startsAt)}–{jstTime(detail.departure.endsAt)} JST
+            </p>
+          </div>
+          <p class="font-display text-3xl text-ink">{formatJpy(detail.booking.totalJpy)}</p>
+        </div>
+
+        <dl class="mt-5 grid gap-4 border-t border-ink/10 pt-4 sm:grid-cols-2">
+          <div>
+            <dt class="lbl">Customer</dt>
+            <dd class="text-sm text-ink">{detail.customer.name}</dd>
+            <dd class="text-sm text-ink/60">{detail.customer.email}</dd>
+            <dd class="text-sm text-ink/60">{detail.customer.phone}</dd>
+          </div>
+          <div>
+            <dt class="lbl">Booked</dt>
+            <dd class="text-sm text-ink">{new Date(detail.booking.createdAt).toISOString().replace("T", " ").slice(0, 16)}</dd>
+            <dd class="text-sm text-ink/60">Source: {detail.booking.source}</dd>
+            {detail.booking.notes && <dd class="mt-1 text-sm text-ink/75">“{detail.booking.notes}”</dd>}
+          </div>
+        </dl>
+      </section>
+
+      <section class="admin-card">
+        <div class="border-b border-ink/10 px-5 py-4">
+          <p class="section-label">Cars & drivers</p>
+        </div>
+        <div class="divide-y divide-ink/10">
+          {detail.cars.map((car) => (
+            <div class="p-5">
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                  <span class="plate text-ink/85">
+                    <small>CODE</small>
+                    <span>{car.vehicle.chassisCode || "—"}</span>
+                  </span>
+                  <div>
+                    <p class="text-sm text-ink">{car.vehicle.name}</p>
+                    <p class="mono-label mt-1 text-ink/50">{car.vehicle.seats} seats · {car.vehicle.transmission}</p>
+                  </div>
+                </div>
+                <p class="font-mono text-sm text-ink">{formatJpy(car.link.priceJpy)}</p>
+              </div>
+              <div class="mt-3 grid gap-2 border-t border-ink/8 pt-3 text-sm text-ink/70 sm:grid-cols-2">
+                <p>Driver: <span class="text-ink/85">{car.link.driverName}</span></p>
+                <p>Nationality: <span class="text-ink/85">{car.link.driverCountry}</span></p>
+                <p>License: <span class="font-mono text-ink/85">{car.link.driverLicense}</span></p>
+                <p>IDP: <span class="font-mono text-ink/85">{car.link.driverIdp || "—"}</span></p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section class="admin-card">
+        <div class="border-b border-ink/10 px-5 py-4">
+          <p class="section-label">Payment</p>
+        </div>
+        {paymentRows.length === 0 ? (
+          <p class="p-5 text-sm text-ink/55">No payment session created.</p>
+        ) : (
+          paymentRows.map((p) => (
+            <div class="flex flex-wrap items-center justify-between gap-2 px-5 py-3 text-sm">
+              <span class="font-mono text-ink/85">{p.provider}</span>
+              <span class="font-mono text-ink/55">{p.providerCheckoutId}</span>
+              <span class="mono-label text-ink/65">{p.status}</span>
+              <span class="font-mono text-ink">{formatJpy(p.amountJpy)}</span>
+            </div>
+          ))
+        )}
+      </section>
+
+      <section class="admin-card">
+        <div class="border-b border-ink/10 px-5 py-4">
+          <p class="section-label">Notifications</p>
+        </div>
+        {notes.length === 0 ? (
+          <p class="p-5 text-sm text-ink/55">Nothing sent yet.</p>
+        ) : (
+          notes.map((n) => (
+            <div class="border-b border-ink/8 px-5 py-3">
+              <div class="flex items-center justify-between gap-3">
+                <p class="mono-label text-ink/65">{n.kind}</p>
+                <p class="mono-label text-ink/45">{n.status}</p>
+              </div>
+              <p class="mt-1 text-sm text-ink/70">{n.subject}</p>
+              {n.error && <p class="mt-1 text-sm text-signal">{n.error}</p>}
+            </div>
+          ))
+        )}
+      </section>
+    </div>
+
+    <div class="space-y-6">
+      <section class="admin-card p-5">
+        <p class="section-label">Actions</p>
+        <div class="mt-4 space-y-2">
+          {detail.booking.status === "pending" && (
+            <form method="POST" action="/api/admin/booking">
+              <input type="hidden" name="id" value={detail.booking.id} />
+              <input type="hidden" name="action" value="confirm" />
+              <input type="hidden" name="back" value={`/admin/bookings/${detail.booking.id}`} />
+              <button class="hard-btn w-full !py-2.5 !text-sm">Mark paid / confirm</button>
+            </form>
+          )}
+          {detail.booking.status === "confirmed" && (
+            <form method="POST" action="/api/admin/booking">
+              <input type="hidden" name="id" value={detail.booking.id} />
+              <input type="hidden" name="action" value="refund" />
+              <input type="hidden" name="back" value={`/admin/bookings/${detail.booking.id}`} />
+              <button class="hard-btn hard-btn--ghost w-full !py-2.5 !text-sm">Refund</button>
+            </form>
+          )}
+          {["pending", "confirmed"].includes(detail.booking.status) && (
+            <form method="POST" action="/api/admin/booking">
+              <input type="hidden" name="id" value={detail.booking.id} />
+              <input type="hidden" name="action" value="cancel" />
+              <input type="hidden" name="back" value={`/admin/bookings/${detail.booking.id}`} />
+              <button class="mono-label w-full border border-ink/20 py-2 text-ink/65 hover:text-signal">
+                Cancel booking
+              </button>
+            </form>
+          )}
+          <a
+            href={`/bookings/${detail.booking.ref}?t=${detail.booking.accessToken}`}
+            target="_blank"
+            class="mono-label block border border-ink/20 py-2 text-center text-ink/65 hover:text-ink"
+          >
+            Customer view ↗
+          </a>
+          {receipt && (
+            <a href={`/receipt/${receipt.token}`} target="_blank" class="mono-label block border border-ink/20 py-2 text-center text-ink/65 hover:text-ink">
+              Receipt {receipt.number} ↗
+            </a>
+          )}
+        </div>
+      </section>
+
+      <section class="admin-card p-5 text-sm leading-relaxed text-ink/60">
+        <p class="mono-label text-ink/45">Pickup checklist</p>
+        <p class="mt-2">Passport · home license · IDP. Photograph the car before handover.</p>
+        <p class="mt-2">Hold expires {detail.booking.holdExpiresAt ? new Date(detail.booking.holdExpiresAt).toISOString().slice(11, 16) + " UTC" : "—"}.</p>
+      </section>
+    </div>
+  </div>
+</AdminLayout>

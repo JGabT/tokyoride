@@ -1,0 +1,35 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tokyoride",
+  "main": "@astrojs/cloudflare/entrypoints/server",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "tokyoride",
+      "database_id": "7e1bd032-8a51-4d58-9ba9-3d1dedd6b4f8",
+      "migrations_dir": "drizzle",
+      "migrations_table": "d1_migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "MEDIA",
+      "bucket_name": "tokyoride-media"
+    }
+  ],
+  "vars": {
+    "PUBLIC_BASE_URL": "https://tokyoride.co",
+    "AIRPAY_MODE": "mock",
+    "BOOKING_LEAD_HOURS": "6",
+    "ADMIN_ALERT_EMAIL": "hello@tokyoride.co"
+  }
+}

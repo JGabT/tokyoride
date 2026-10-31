@@ -1,0 +1,68 @@
+---
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import { getAllTours, getVehicles, getRateMatrix } from "@/lib/catalog";
+
+const user = Astro.locals.user;
+const [tourList, fleet, rates] = await Promise.all([
+  getAllTours(),
+  getVehicles(false),
+  getRateMatrix(),
+]);
+
+const cells = new Map(rates.map((r) => [`${r.tourId}__${r.vehicleId}`, r]));
+const saved = Astro.url.searchParams.get("saved");
+---
+
+<AdminLayout title="Pricing" active="rates" user={user}>
+  {saved && (
+    <p class="mb-4 border border-signal/40 bg-signal/10 px-3 py-2 text-sm text-ink">Pricing saved.</p>
+  )}
+
+  <p class="mono-label text-ink/55">
+    Flat price per car, per route. Blank = not offered. Prices are tax-inclusive JPY.
+  </p>
+
+  <form method="POST" action="/api/admin/rates" class="mt-5">
+    <div class="overflow-x-auto border border-ink/12">
+      <table class="w-full min-w-[720px] border-collapse text-sm">
+        <thead>
+          <tr class="border-b border-ink/12 bg-white">
+            <th class="p-3 text-left mono-label text-ink/50">Vehicle</th>
+            {tourList.map((tour) => (
+              <th class="p-3 text-left mono-label text-ink/50">{tour.title}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {fleet.map((vehicle) => (
+            <tr class="border-b border-ink/10">
+              <td class="p-3">
+                <p class="text-sm text-ink">{vehicle.name}</p>
+                <p class="mono-label mt-1 text-ink/45">{vehicle.chassisCode || "—"}</p>
+              </td>
+              {tourList.map((tour) => {
+                const cell = cells.get(`${tour.id}__${vehicle.id}`);
+                return (
+                  <td class="p-2">
+                    <input
+                      name={`rate__${tour.id}__${vehicle.id}`}
+                      class="field !py-2 !text-right"
+                      inputmode="numeric"
+                      placeholder="—"
+                      value={cell && cell.active ? String(cell.priceJpy) : ""}
+                    />
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="mt-4 flex items-center gap-3">
+      <button class="hard-btn">Save pricing</button>
+      <p class="mono-label text-ink/45">Changes go live immediately.</p>
+    </div>
+  </form>
+</AdminLayout>

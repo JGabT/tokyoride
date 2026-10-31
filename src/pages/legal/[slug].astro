@@ -1,0 +1,71 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import { getSettings } from "@/lib/settings";
+
+const { slug } = Astro.params;
+const settings = await getSettings();
+
+const pages: Record<string, { title: string; body: string[] }> = {
+  terms: {
+    title: "Rental terms",
+    body: [
+      "These terms govern every self-drive rental booked through tokyoride.co.",
+      "The renter must hold a valid driving license and, where required, an International Driving Permit issued under the 1949 Geneva Convention. The renter must be at least 25 years old and have held a license for three years, unless a written exception is agreed before pickup.",
+      "The vehicle is rented for the fixed window shown on the booking. Late returns are charged at the hourly rate shown at pickup. The vehicle must be returned with the same fuel level; refuelling is charged at cost plus a service fee.",
+      "For self-drive bookings the renter is responsible for traffic fines, tolls not covered by the ETC card, and any damage beyond the insurance excess. Driving under the influence, racing, and use on closed or private roads is prohibited.",
+      "Photographs of the vehicle are taken before and after each rental and form part of the rental record.",
+    ],
+  },
+  cancellation: {
+    title: "Cancellation policy",
+    body: [
+      settings.cancellation_policy,
+      "Cancellations must be requested in writing to the contact address on this site. Refunds are returned to the original payment method within ten business days.",
+      "If a vehicle becomes unavailable through mechanical failure, we will offer an equivalent car, a different date, or a full refund.",
+      "No-shows at the pickup time are treated as a cancellation within 24 hours.",
+    ],
+  },
+  privacy: {
+    title: "Privacy policy",
+    body: [
+      "We collect the information needed to rent you a car: your name, contact details, license and permit numbers, and payment references. Card details are processed by our payment provider and never stored on our servers.",
+      "Driver information is retained for the period required by Japanese law and insurer requirements, then deleted.",
+      "We use your email to send booking confirmations, receipts and operational notices. We do not sell or share your data for marketing.",
+      "You may request a copy or deletion of your data by emailing us.",
+      "This site uses privacy-friendly, cookie-less analytics. No advertising trackers are loaded.",
+    ],
+  },
+  tokushoho: {
+    title: "Business information",
+    body: [
+      `Trading name: ${settings.legal_name}`,
+      `Address: ${settings.legal_address}`,
+      `Telephone: ${settings.legal_phone}`,
+      `Responsible person: ${settings.legal_responsible}`,
+      settings.travel_registration
+        ? `Registration: ${settings.travel_registration}`
+        : "Registration: details provided on request.",
+      `Email: ${settings.email}`,
+      "Price: the total shown at checkout, inclusive of Japanese consumption tax.",
+      "Payment: card payment through AirPay at the time of booking.",
+      "Service timing: the rental window shown on the booking confirmation.",
+      "Cancellation: see the cancellation policy linked in the footer.",
+      "Refunds: returned to the original payment method.",
+    ],
+  },
+};
+
+const page = pages[slug ?? ""];
+if (!page) return Astro.redirect("/");
+---
+
+<Layout title={`${page.title} | ${settings.brand_name}`} description={page.title}>
+  <main class="mx-auto max-w-3xl px-5 py-14 sm:py-20">
+    <a href="/" class="mono-label text-ink/55 hover:text-signal">← Home</a>
+    <h1 class="display mt-5 text-[clamp(2.2rem,6vw,4rem)] text-ink">{page.title}</h1>
+    <div class="mt-8 space-y-4 border-t border-ink/10 pt-8 text-sm leading-relaxed text-ink/80">
+      {page.body.map((p) => <p>{p}</p>)}
+    </div>
+    <p class="mono-label mt-10 text-ink/45">Last updated {new Date().toISOString().slice(0, 10)}</p>
+  </main>
+</Layout>

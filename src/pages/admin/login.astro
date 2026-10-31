@@ -1,0 +1,40 @@
+---
+import Layout from "@/layouts/Layout.astro";
+
+const error = Astro.url.searchParams.get("error");
+const next = Astro.url.searchParams.get("next") ?? "/admin";
+---
+
+<Layout title="Staff login | Tokyoride" description="Staff access" bare>
+  <main class="flex min-h-screen items-center justify-center px-5">
+    <div class="w-full max-w-sm">
+      <div class="mb-6 text-center">
+        <p class="display text-3xl text-ink">Tokyoride</p>
+        <p class="mono-label mt-2 text-signal">Control room</p>
+      </div>
+
+      <form method="POST" action="/api/admin/login" class="admin-card space-y-4 p-6">
+        <input type="hidden" name="next" value={next} />
+
+        {error && (
+          <p class="border border-signal/40 bg-signal/10 px-3 py-2 text-sm text-ink">
+            Wrong email or password.
+          </p>
+        )}
+
+        <div>
+          <label for="email" class="lbl">Email</label>
+          <input id="email" name="email" type="email" required class="field" autocomplete="username" />
+        </div>
+        <div>
+          <label for="password" class="lbl">Password</label>
+          <input id="password" name="password" type="password" required class="field" autocomplete="current-password" />
+        </div>
+
+        <button type="submit" class="hard-btn w-full">Sign in</button>
+      </form>
+
+      <p class="mono-label mt-5 text-center text-ink/40">Staff only · tokyoride.co</p>
+    </div>
+  </main>
+</Layout>

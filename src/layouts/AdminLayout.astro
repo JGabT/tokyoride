@@ -1,0 +1,96 @@
+---
+import "@/styles/global.css";
+import Logo from "@/components/site/Logo.astro";
+
+interface Props {
+  title: string;
+  active?: string;
+  user?: { name: string; email: string } | null;
+  children?: any;
+}
+
+const { title, active = "", user } = Astro.props;
+
+const links = [
+  { href: "/admin", label: "Dashboard", key: "dashboard" },
+  { href: "/admin/bookings", label: "Bookings", key: "bookings" },
+  { href: "/admin/departures", label: "Calendar", key: "departures" },
+  { href: "/admin/tours", label: "Courses", key: "tours" },
+  { href: "/admin/fleet", label: "Fleet", key: "fleet" },
+  { href: "/admin/rates", label: "Pricing", key: "rates" },
+  { href: "/admin/payments", label: "Payments", key: "payments" },
+  { href: "/admin/map", label: "Maps", key: "map" },
+  { href: "/admin/media", label: "Media", key: "media" },
+  { href: "/admin/inbox", label: "Inbox", key: "inbox" },
+  { href: "/admin/settings", label: "Settings", key: "settings" },
+];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title} · Tokyoride admin</title>
+    <meta name="robots" content="noindex" />
+  </head>
+  <body class="grain bg-paper text-ink">
+    <div class="flex min-h-screen">
+      <aside class="hidden w-56 shrink-0 border-r border-ink/10 bg-white lg:block">
+        <div class="border-b border-ink/10 p-5">
+          <a href="/admin" class="display block text-2xl text-ink">Tokyoride</a>
+          <p class="mono-label mt-1 text-signal">Control room</p>
+        </div>
+        <nav class="p-3">
+          {links.map((link) => (
+            <a
+              href={link.href}
+              class:list={[
+                "mono-label block border-l-2 px-3 py-2.5 transition-colors",
+                active === link.key
+                  ? "border-signal bg-signal/10 text-ink"
+                  : "border-transparent text-ink/65 hover:border-ink/30 hover:text-ink",
+              ]}
+            >
+              {link.label}
+            </a>
+          ))}
+        </nav>
+        <div class="mt-auto border-t border-ink/10 p-4">
+          <p class="text-xs text-ink/85">{user?.name ?? "Admin"}</p>
+          <p class="mono-label mt-1 truncate text-ink/45">{user?.email ?? ""}</p>
+          <div class="mt-3 flex gap-2">
+            <a href="/" target="_blank" class="mono-label border border-ink/20 px-2 py-1.5 text-ink/65 hover:text-ink">
+              Site ↗
+            </a>
+            <form method="POST" action="/api/admin/logout">
+              <button class="mono-label border border-ink/20 px-2 py-1.5 text-ink/65 hover:text-signal">
+                Out
+              </button>
+            </form>
+          </div>
+        </div>
+      </aside>
+
+      <div class="min-w-0 flex-1">
+        <header class="flex items-center justify-between gap-4 border-b border-ink/10 bg-paper px-5 py-4 lg:px-8">
+          <div class="flex items-center gap-3">
+            <a href="/admin" class="lg:hidden"><Logo size="sm" /></a>
+            <h1 class="font-display text-xl leading-none text-ink">{title}</h1>
+          </div>
+          <div class="flex items-center gap-2 overflow-x-auto lg:hidden">
+            {links.slice(0, 5).map((l) => (
+              <a href={l.href} class="mono-label whitespace-nowrap border border-ink/15 px-2 py-1.5 text-ink/70">
+                {l.label}
+              </a>
+            ))}
+          </div>
+        </header>
+
+        <main class="p-5 lg:p-8">
+          <slot />
+        </main>
+      </div>
+    </div>
+  </body>
+</html>
