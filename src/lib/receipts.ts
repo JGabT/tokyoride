@@ -14,6 +14,7 @@ import {
 import { newId, randomCode } from "./ids";
 import { formatJpy, jstLong, jstTime } from "./dates";
 import { queueNotification } from "./notify";
+import { env } from "./runtime";
 
 export type BookingDetail = Awaited<ReturnType<typeof getBookingDetail>>;
 
@@ -177,7 +178,7 @@ export async function markPaid(
   await queueNotification({
     bookingId,
     kind: "admin_new_booking",
-    recipient: process.env.ADMIN_ALERT_EMAIL ?? "hello@tokyoride.co",
+    recipient: env("ADMIN_ALERT_EMAIL", "hello@tokyoride.co"),
     subject: `New booking ${detail.booking.ref} — ${formatJpy(detail.booking.totalJpy)}`,
     body: `${detail.customer.name} booked ${cars} on ${detail.tour.title} for ${jstLong(detail.departure.startsAt)}.`,
   });
